@@ -1,0 +1,31 @@
+# Build PÚBLICO: sem nenhum dado; abre no assistente de primeira execução. Pode ser distribuído.
+appId: app.dueto.desktop
+productName: Dueto
+copyright: Copyright © 2026 Dueto contributors (MIT)
+directories:
+  output: release/publico
+  buildResources: build
+files:
+  - dist/**
+  - dist-electron/**
+  - package.json
+asar: true
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+  icon: build/icon.ico
+  artifactName: Dueto-${version}.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Dueto
+  artifactName: Dueto-Setup-${version}.${ext}
+  language: "1046"
+portable:
+  artifactName: Dueto-portable.${ext}

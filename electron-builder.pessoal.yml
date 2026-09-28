@@ -1,0 +1,14 @@
+# Build PESSOAL: igual ao público, mas embute uma cópia do seu banco (private/seed/dueto.db).
+# Na primeira abertura, se não houver %APPDATA%/Dueto/dueto.db, o app restaura essa cópia.
+# NÃO distribua os arquivos gerados por esta configuração.
+extends: ./electron-builder.yml
+directories:
+  output: release/pessoal
+  buildResources: build
+extraResources:
+  - from: private/seed/dueto.db
+    to: seed/dueto.db
+nsis:
+  artifactName: Dueto-Pessoal-Setup-${version}.${ext}
+portable:
+  artifactName: Dueto-Pessoal-portable.${ext}
