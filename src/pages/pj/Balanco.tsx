@@ -40,7 +40,7 @@ export function Balanco() {
         <Stat label="Retiradas planejadas" value={r.totais.retirada} tone="accent" />
         <Stat label="Caixa ao final" value={r.caixaFinal} tone={r.menorCaixa < (cfg.caixaMinimo ?? 0) ? "bad" : "good"} sub={`menor caixa no período ${fmtMoney(r.menorCaixa)}`} />
       </div>
-      <Card title="Premissas da previsão">
+      <Card title="Premissas da previsão" info="Meses passados usam os valores lançados. Meses futuros usam a receita prevista, os impostos estimados pelo Dueto (DAS ou regime, DARF do pró-labore e outros impostos recorrentes), as recorrências e a política de pró-labore. Edite a receita e a retirada de cada mês direto na tabela; tudo é salvo automaticamente.">
         <div className="flex flex-wrap gap-3 items-end">
           <Field label="Receita mensal prevista" hint={`padrão: média dos últimos 3 meses (${fmtMoney(b.receitaPrevistaPadrao)})`}><Input className="mono w-40" defaultValue={cfg.receitaMensal ?? ""} placeholder={String(b.receitaPrevistaPadrao)} onBlur={(e) => save({ receitaMensal: parseMoney(e.target.value) ?? undefined })} /></Field>
           <Field label="Despesas mensais" hint={`padrão: recorrências ativas (${fmtMoney(b.despesasPadrao)})`}><Input className="mono w-36" defaultValue={cfg.despesasMensais ?? ""} placeholder={String(b.despesasPadrao)} onBlur={(e) => save({ despesasMensais: parseMoney(e.target.value) ?? undefined })} /></Field>
@@ -50,7 +50,6 @@ export function Balanco() {
           <Field label="% do lucro para retirar"><Input className="mono w-24" defaultValue={Math.round((cfg.retiradaPercentual ?? 0.7) * 100)} onBlur={(e) => save({ retiradaPercentual: (Number(e.target.value) || 70) / 100 })} /></Field>
           <Button onClick={preencherRetiradas}>Preencher retiradas</Button>
         </div>
-        <p className="text-xs text-text-3 mt-2">Meses passados usam os valores lançados. Meses futuros usam a receita prevista, os impostos estimados pelo Dueto (DAS ou regime, DARF do pró-labore e outros impostos recorrentes), as recorrências e a política de pró-labore. Edite a receita e a retirada de cada mês direto na tabela; tudo é salvo automaticamente.</p>
       </Card>
       <Card title="Balanço mês a mês" padded={false}>
         <div className="table-wrap rounded-none border-0">

@@ -8,7 +8,7 @@ import type { IrpfTable } from "./tables";
 export interface IrpfInput {
   /** rendimento bruto tributável do mês (ex.: pró-labore bruto, receitas do carnê-leão) */
   rendimentoBruto: number;
-  /** deduções legais: INSS, livro-caixa, pensão etc. */
+  /** deduções legais: INSS, pensão etc. */
   deducoes: number;
   dependentes?: number;
   /** usar o desconto simplificado quando for mais vantajoso (aplicável ao IRRF sobre trabalho) */
@@ -62,7 +62,7 @@ export function calcularIrpfMensal(input: IrpfInput, table: IrpfTable): IrpfResu
   let base = round2(Math.max(0, input.rendimentoBruto - deducoesLegais));
   let usouSimplificado = false;
   memoria.push(`Rendimento bruto: ${input.rendimentoBruto.toFixed(2)}`);
-  memoria.push(`Deduções legais (INSS/livro-caixa/dependentes): ${deducoesLegais.toFixed(2)} → base ${base.toFixed(2)}`);
+  memoria.push(`Deduções legais (INSS/dependentes): ${deducoesLegais.toFixed(2)} → base ${base.toFixed(2)}`);
 
   if (input.permitirDescontoSimplificado && table.descontoSimplificado != null) {
     const baseSimpl = round2(Math.max(0, input.rendimentoBruto - table.descontoSimplificado));

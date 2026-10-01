@@ -26,7 +26,6 @@ export function normalizeText(s: string): string {
 }
 
 const C: EntityType[] = ["CASAL", "PESSOA"];
-const PF: EntityType[] = ["AUTONOMO_PF"];
 const PJ: EntityType[] = ["PJ"];
 
 let n = 0;
@@ -39,7 +38,6 @@ export const SEED_RULES: CategRule[] = [
   r("seguro vida", "saude-seguro-vida", C, 5),
   r("ipva", "transporte-ipva", C, 5),
   r("iptu", "moradia-iptu", C, 5),
-  r("aluguel sala", "pf-aluguel-sala", PF, 6),
   r("aluguel", "moradia-aluguel", C, 4),
   r("energia", "moradia-energia", C),
   r("luz", "moradia-energia", C),
@@ -130,34 +128,6 @@ export const SEED_RULES: CategRule[] = [
   r("meli", "casa-compras", C),
   r("mercado livre", "casa-compras", C, 3),
   r("fogao", "casa-compras", C),
-
-  // autônomo PF (consultório)
-  r("webdiet", "pf-software", PF),
-  r("software", "pf-software", PF),
-  r("sala", "pf-aluguel-sala", PF),
-  r("crn", "pf-conselho", PF),
-  r("crp", "pf-conselho", PF),
-  r("conselho", "pf-conselho", PF),
-  r("anuidade", "pf-conselho", PF),
-  r("balanca", "pf-materiais", PF),
-  r("colher", "pf-materiais", PF),
-  r("muffin", "pf-materiais", PF),
-  r("papa tudo", "pf-materiais", PF),
-  r("pratinho", "pf-materiais", PF),
-  r("chaves", "pf-materiais", PF),
-  r("material", "pf-materiais", PF),
-  r("evento", "pf-cursos", PF),
-  r("interclinic", "pf-cursos", PF),
-  r("psta", "pf-cursos", PF),
-  r("curso", "pf-cursos", PF),
-  r("congresso", "pf-cursos", PF),
-  r("inss", "pf-inss", PF),
-  r("gps", "pf-inss", PF),
-  r("carne", "pf-carne-leao", PF),
-  r("darf", "pf-carne-leao", PF),
-  r("carona", "pf-transporte", PF),
-  r("uber", "pf-transporte", PF),
-  r("troco", "pf-outras", PF),
 
   // PJ
   r("das", "pj-das", PJ, 3),

@@ -11,7 +11,7 @@ import { BarsChart } from "@/components/charts";
 import { impostoDoMes, obrigacoesDoMes, proLaboreDoMes, seriesPJ } from "@/lib/fiscal";
 import { totalImpostosMes } from "@/lib/impostos";
 import { useAvisos } from "@/components/AvisosFlutuantes";
-import { selAutonomo, selCasal, selPJ, selPessoas, useStore } from "@/state/store";
+import { selCasal, selPJ, selPessoas, useStore } from "@/state/store";
 
 export default function Dashboard() {
   const s = useStore();
@@ -19,7 +19,6 @@ export default function Dashboard() {
   const casal = selCasal(s);
   const pessoas = selPessoas(s);
   const pj = selPJ(s);
-  const aut = selAutonomo(s);
   const hoje = todayISO();
 
   const resumo = useMemo(() => (casal ? resumoMensalCasal({ competencia: mk, transactions: s.transactions, categories: s.categories, pessoas, casalId: casal.id, carregarRestante: !casal.config.zerarRestante, hoje }) : null), [s.transactions, s.categories, pessoas, casal, mk, hoje]);
@@ -30,13 +29,6 @@ export default function Dashboard() {
     const doMes = s.transactions.filter((t) => t.entityId === pj.id && t.kind === "receita" && t.competencia === mk);
     return { usd: round2(doMes.filter((t) => t.moeda === "USD").reduce((a, t) => a + t.valor, 0)), brl: round2(doMes.reduce((a, t) => a + t.valorBrl, 0)) };
   }, [s.transactions, pj, mk]);
-  const cons = useMemo(() => {
-    if (!aut) return null;
-    const doMes = s.transactions.filter((t) => t.entityId === aut.id && t.competencia === mk);
-    const rec = doMes.filter((t) => t.kind === "receita").reduce((a, t) => a + t.valorBrl, 0);
-    const desp = doMes.filter((t) => t.kind === "despesa").reduce((a, t) => a + t.valorBrl, 0);
-    return { rec: round2(rec), desp: round2(desp), res: round2(rec - desp) };
-  }, [s.transactions, aut, mk]);
   const totalInvestido = useMemo(() => {
     const ate = `${mk}-31`;
     return round2(s.investments.filter((i) => i.ativo).reduce((a, inv) => a + (evolucaoProduto(inv, s.snapshots, s.contributions, ate).saldoAtual ?? 0), 0));
@@ -53,7 +45,7 @@ export default function Dashboard() {
   const alertas = useMemo(() => {
     const out: { tone: "warn" | "bad" | "info"; msg: string; to: string }[] = [];
     const vencidas = s.transactions.filter((t) => t.status === "pendente" && t.kind === "despesa" && t.vencimento && t.vencimento < hoje);
-    if (vencidas.length) out.push({ tone: "bad", msg: `${vencidas.length} conta(s) vencida(s), total ${fmtMoney(vencidas.reduce((a, t) => a + t.valorBrl, 0))}.`, to: "/casal" });
+    if (vencidas.length) out.push({ tone: "bad", msg: `${vencidas.length} conta(s) vencida(s), total ${fmtMoney(vencidas.reduce((a, t) => a + t.valorBrl, 0))}.`, to: "/pessoal" });
     if (imp?.fatorR && imp.fatorR.rbt12 > 0 && imp.fatorR.fatorR < 0.28) out.push({ tone: "warn", msg: `Fator R em ${(imp.fatorR.fatorR * 100).toFixed(1)}% (< 28%): tributação pelo Anexo V. Pró-labore mínimo sugerido este mês: ${fmtMoney(imp.proLaboreMinimo ?? 0)}.`, to: "/pj" });
     const semCotacao = s.transactions.filter((t) => t.moeda !== "BRL" && !t.cotacao);
     if (semCotacao.length) out.push({ tone: "warn", msg: `${semCotacao.length} lançamento(s) em moeda estrangeira sem cotação informada.`, to: "/pj" });
@@ -74,9 +66,9 @@ export default function Dashboard() {
     });
   }, [s.transactions, s.categories, pessoas, casal, mk, hoje]);
 
-  const obrig = useMemo(() => obrigacoesDoMes(s, [pj, aut].filter(Boolean) as never, mk).filter((o) => !o.concluida && o.tipo === "pagamento").slice(0, 6), [s, pj, aut, mk]);
+  const obrig = useMemo(() => (pj ? obrigacoesDoMes(s, [pj], mk) : []).filter((o) => !o.concluida && o.tipo === "pagamento").slice(0, 6), [s, pj, mk]);
   const lucrosMes = pj ? round2(s.transactions.filter((t) => t.entityId === pj.id && t.categoryId === "pj-lucros" && t.competencia === mk).reduce((a, t) => a + t.valorBrl, 0)) : 0;
-  const aportesMes = round2(s.transactions.filter((t) => (t.categoryId === "investimentos" || t.categoryId === "pf-investimento") && t.competencia === mk).reduce((a, t) => a + t.valorBrl, 0));
+  const aportesMes = round2(s.transactions.filter((t) => t.categoryId === "investimentos" && t.competencia === mk).reduce((a, t) => a + t.valorBrl, 0));
   const { receitas } = pj ? seriesPJ(s, pj) : { receitas: new Map() };
   void receitas;
 
@@ -85,18 +77,17 @@ export default function Dashboard() {
       <div className="flex items-end justify-between flex-wrap gap-2">
         <div><h1 className="text-xl font-semibold">Visão geral</h1><p className="text-sm text-text-3">{fmtMonth(mk, "long")}</p></div>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-        <Stat label="Saldo da casa no mês" value={resumo?.saldo ?? 0} tone={(resumo?.saldo ?? 0) >= 0 ? "good" : "bad"} sub={resumo ? `receitas ${fmtMoney(resumo.totalReceitas)} · despesas ${fmtMoney(resumo.totalDespesas)}` : undefined} />
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
+        <Stat label="Saldo pessoal no mês" value={resumo?.saldo ?? 0} tone={(resumo?.saldo ?? 0) >= 0 ? "good" : "bad"} sub={resumo ? `receitas ${fmtMoney(resumo.totalReceitas)} · despesas ${fmtMoney(resumo.totalDespesas)}` : undefined} />
         <Stat label="Receita da empresa" value={recPJ.brl} sub={pj ? (recPJ.usd ? `US$ ${recPJ.usd.toLocaleString("pt-BR")}` : pj.config.fatura?.moeda ?? "BRL") : "sem PJ"} />
         <Stat label="Fator R" value={imp?.fatorR ? imp.fatorR.fatorR : 0} moeda="pct" tone={imp?.fatorR && imp.fatorR.fatorR >= 0.28 ? "good" : "warn"} sub={imp?.das ? `Anexo ${imp.das.anexo} · faixa ${imp.das.faixa}` : imp?.regime ?? "—"} />
         <Stat label="Impostos do mês" value={impostosMes?.total ?? 0} sub={impostosMes ? (impostosMes.informado ? `informado ${fmtMoney(impostosMes.informado)} · estimado ${fmtMoney(impostosMes.estimado)}` : `estimativa; informe em Empresa → Impostos`) : undefined} />
-        {aut && <Stat label={`Resultado — ${aut.nome}`} value={cons?.res ?? 0} tone={(cons?.res ?? 0) >= 0 ? "good" : "bad"} sub={cons ? `${fmtMoney(cons.rec)} − ${fmtMoney(cons.desp)}` : undefined} />}
         <Stat label="Total investido" value={totalInvestido} tone="accent" sub={`aportes no mês ${fmtMoney(aportesMes)}`} />
       </div>
 
 
       <div className="grid lg:grid-cols-3 gap-4">
-        <Card title="Receitas × despesas da casa (6 meses)" className="lg:col-span-2">
+        <Card title="Receitas × despesas pessoais (6 meses)" className="lg:col-span-2">
           <BarsChart data={serie6} series={[{ key: "receitas", nome: "Receitas", cor: "var(--cat-1)" }, { key: "despesas", nome: "Despesas", cor: "var(--cat-2)" }]} />
         </Card>
         <Card title="Próximos 7 dias">
@@ -115,12 +106,10 @@ export default function Dashboard() {
       </div>
 
       <Card title="Fluxo de caixa consolidado do mês">
-        <div className={`grid gap-3 items-stretch text-sm ${aut ? "md:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr]" : "md:grid-cols-[1fr_auto_1fr_auto_1fr]"}`}>
+        <div className="grid gap-3 items-stretch text-sm md:grid-cols-[1fr_auto_1fr_auto_1fr]">
           <FlowBox titulo={pj?.nome ?? "Empresa"} linhas={[["Receita", recPJ.brl], ["DAS", -(imp?.valorTributo ?? 0)], ["Despesas", -(pj ? round2(s.transactions.filter((t) => t.entityId === pj.id && t.kind === "despesa" && t.competencia === mk && !["pj-prolabore", "pj-darf-prolabore", "pj-das", "pj-lucros"].includes(t.categoryId ?? "")).reduce((a, t) => a + t.valorBrl, 0)) : 0)]]} />
           <Arrow label={`pró-labore ${fmtMoney(pl?.liquido ?? 0)}${lucrosMes ? ` + lucros ${fmtMoney(lucrosMes)}` : ""}`} />
-          {aut && <><FlowBox titulo={aut.nome} linhas={[["Receita", cons?.rec ?? 0], ["Despesas", -(cons?.desp ?? 0)], ["Resultado", cons?.res ?? 0]]} />
-          <Arrow label="resultado" /></>}
-          <FlowBox titulo={casal?.nome ?? "Casa"} linhas={[["Receitas", resumo?.totalReceitas ?? 0], ["Despesas", -(resumo?.totalDespesas ?? 0)], ["Saldo", resumo?.saldo ?? 0]]} destaque />
+          <FlowBox titulo={casal?.nome ?? "Pessoal"} linhas={[["Receitas", resumo?.totalReceitas ?? 0], ["Despesas", -(resumo?.totalDespesas ?? 0)], ["Saldo", resumo?.saldo ?? 0]]} destaque />
           <Arrow label={`aportes ${fmtMoney(aportesMes)}`} />
           <FlowBox titulo="Investimentos" linhas={[["Patrimônio", totalInvestido], ["Aportes no mês", aportesMes]]} />
         </div>

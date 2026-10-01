@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { BookOpen, Briefcase, ChevronLeft, ChevronRight, Home, LayoutDashboard, Moon, Search, Settings, Sun, UserRound, TrendingUp, Upload, Monitor } from "lucide-react";
+import { BookOpen, Briefcase, ChevronLeft, ChevronRight, Home, LayoutDashboard, Moon, Search, Settings, Sun, TrendingUp, Upload, Monitor } from "lucide-react";
 import { addMonths, currentMonthKey, fmtMonth } from "@core/dates";
 import { Button, Kbd } from "@/components/ui";
 import { useStore } from "@/state/store";
@@ -9,7 +9,6 @@ import { cn } from "@/lib/utils";
 import Dashboard from "@/pages/Dashboard";
 import Casal from "@/pages/Casal";
 import PJ from "@/pages/PJ";
-import Consultorio from "@/pages/Consultorio";
 import Investimentos from "@/pages/Investimentos";
 import Configuracoes from "@/pages/Configuracoes";
 import Importar from "@/pages/Importar";
@@ -17,7 +16,7 @@ import Onboarding from "@/pages/Onboarding";
 import Ajuda from "@/pages/Ajuda";
 import { Logo } from "@/components/Logo";
 import { CommandPalette } from "@/components/CommandPalette";
-import { AvisosFlutuantes } from "@/components/AvisosFlutuantes";
+import { AvisosFlutuantes, Notificacao } from "@/components/AvisosFlutuantes";
 
 function applyTheme(theme: "light" | "dark" | "system") {
   const root = document.documentElement;
@@ -27,13 +26,12 @@ function applyTheme(theme: "light" | "dark" | "system") {
 
 const NAV = [
   { to: "/", label: "Visão geral", icon: LayoutDashboard, key: "1" },
-  { to: "/casal", label: "Casa", icon: Home, key: "2" },
+  { to: "/pessoal", label: "Pessoal", icon: Home, key: "2" },
   { to: "/pj", label: "Empresa", icon: Briefcase, key: "3" },
-  { to: "/consultorio", label: "Autônomo", icon: UserRound, key: "4" },
-  { to: "/investimentos", label: "Investimentos", icon: TrendingUp, key: "5" },
-  { to: "/importar", label: "Importar", icon: Upload, key: "6" },
-  { to: "/config", label: "Configurações", icon: Settings, key: "7" },
-  { to: "/ajuda", label: "Como usar", icon: BookOpen, key: "8" },
+  { to: "/investimentos", label: "Investimentos", icon: TrendingUp, key: "4" },
+  { to: "/importar", label: "Importar", icon: Upload, key: "5" },
+  { to: "/config", label: "Configurações", icon: Settings, key: "6" },
+  { to: "/ajuda", label: "Como usar", icon: BookOpen, key: "7" },
 ];
 
 export default function App() {
@@ -57,7 +55,7 @@ export default function App() {
       const typing = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (e.target as HTMLElement)?.isContentEditable;
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); s.setBusca(true); return; }
       if (typing) return;
-      if (e.altKey && /^[1-8]$/.test(e.key)) { const n = NAV[Number(e.key) - 1]; if (n) nav(n.to); }
+      if (e.altKey && /^[1-7]$/.test(e.key)) { const n = NAV[Number(e.key) - 1]; if (n) nav(n.to); }
       if (e.key === "[") s.setCompetencia(addMonths(s.competencia, -1));
       if (e.key === "]") s.setCompetencia(addMonths(s.competencia, 1));
       if (e.key === "t" || e.key === "T") s.setCompetencia(currentMonthKey());
@@ -76,8 +74,6 @@ export default function App() {
   }, [nav]);
 
   const onboarded = useMemo(() => s.entities.some((e) => e.tipo === "PESSOA"), [s.entities]);
-  const temAutonomo = s.entities.some((e) => e.tipo === "AUTONOMO_PF" && e.ativa);
-  const navVisivel = NAV.filter((n) => n.to !== "/consultorio" || temAutonomo);
 
   if (!s.ready) return <div className="h-full flex items-center justify-center text-text-3">Abrindo o banco local…</div>;
   if (s.erro && !s.db) return <div className="h-full flex items-center justify-center p-8 text-bad">{s.erro}</div>;
@@ -91,7 +87,7 @@ export default function App() {
           {!collapsed && <div className="leading-tight"><div className="font-semibold">Dueto</div><div className="text-[10px] text-text-3">finanças PF e PJ para devs</div></div>}
         </div>
         <nav className="flex-1 py-2 flex flex-col gap-0.5 px-2" aria-label="Principal">
-          {navVisivel.map((n) => (
+          {NAV.map((n) => (
             <NavLink key={n.to} to={n.to} end={n.to === "/"} title={`${n.label} (Alt+${n.key})`} className={({ isActive }) => cn("flex items-center gap-2 rounded-md px-2 py-2 text-sm text-text-2 hover:bg-surface-2 hover:text-text", isActive && "bg-accent-soft text-accent font-medium")}>
               <n.icon size={18} className="shrink-0" />
               {!collapsed && <span className="truncate">{n.label}</span>}
@@ -123,9 +119,9 @@ export default function App() {
           <ErrorBoundary area="esta tela" resetKey={loc.pathname}>
           <Routes>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/pessoal" element={<Casal />} />
             <Route path="/casal" element={<Casal />} />
             <Route path="/pj" element={<PJ />} />
-            <Route path="/consultorio" element={temAutonomo ? <Consultorio /> : <Dashboard />} />
             <Route path="/investimentos" element={<Investimentos />} />
             <Route path="/importar" element={<Importar />} />
             <Route path="/config" element={<Configuracoes />} />
@@ -137,6 +133,7 @@ export default function App() {
       </div>
       <CommandPalette />
       <AvisosFlutuantes />
+      <Notificacao />
     </div>
   );
 }

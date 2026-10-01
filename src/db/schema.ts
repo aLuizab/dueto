@@ -66,4 +66,39 @@ export const MIGRATIONS: Migration[] = [
       CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
     `,
   },
+  {
+    version: 2,
+    nome: "remove o perfil autônomo PF",
+    sql: `
+      CREATE TEMP TABLE _aut AS SELECT id FROM entities WHERE tipo = 'AUTONOMO_PF';
+      CREATE TEMP TABLE _aut_tx AS SELECT id FROM transactions WHERE entity_id IN (SELECT id FROM _aut) OR category_id LIKE 'pf-%';
+      UPDATE contributions SET transaction_id = NULL WHERE transaction_id IN (SELECT id FROM _aut_tx);
+      UPDATE transactions SET origem_id = NULL WHERE origem_id IN (SELECT id FROM _aut_tx);
+      DELETE FROM transactions WHERE id IN (SELECT id FROM _aut_tx);
+      DELETE FROM recurrences WHERE entity_id IN (SELECT id FROM _aut) OR category_id LIKE 'pf-%';
+      DELETE FROM accounts WHERE entity_id IN (SELECT id FROM _aut);
+      DELETE FROM invoices WHERE entity_id IN (SELECT id FROM _aut);
+      DELETE FROM clients WHERE entity_id IN (SELECT id FROM _aut);
+      DELETE FROM goals WHERE entity_id IN (SELECT id FROM _aut);
+      DELETE FROM budgets WHERE entity_id IN (SELECT id FROM _aut) OR category_id LIKE 'pf-%';
+      DELETE FROM obligations_done WHERE entity_id IN (SELECT id FROM _aut);
+      DELETE FROM entities WHERE id IN (SELECT id FROM _aut);
+      UPDATE transactions SET category_id = NULL WHERE category_id = 'rec-autonomo';
+      UPDATE recurrences SET category_id = NULL WHERE category_id = 'rec-autonomo';
+      DELETE FROM budgets WHERE category_id = 'rec-autonomo';
+      DELETE FROM categ_rules WHERE category_id LIKE 'pf-%' OR category_id = 'rec-autonomo';
+      DELETE FROM categories WHERE id LIKE 'pf-%' OR id = 'rec-autonomo' OR escopo = '["AUTONOMO_PF"]';
+      UPDATE categories SET escopo = REPLACE(REPLACE(escopo, ',"AUTONOMO_PF"', ''), '"AUTONOMO_PF",', '') WHERE escopo LIKE '%AUTONOMO_PF%';
+      UPDATE categ_rules SET escopo = REPLACE(REPLACE(escopo, ',"AUTONOMO_PF"', ''), '"AUTONOMO_PF",', '') WHERE escopo LIKE '%AUTONOMO_PF%';
+      DELETE FROM settings WHERE key LIKE 'autonomo.%';
+      DROP TABLE IF EXISTS patients;
+      DROP TABLE _aut_tx;
+      DROP TABLE _aut;
+    `,
+  },
+  {
+    version: 3,
+    nome: "aba Casa passa a se chamar Pessoal",
+    sql: `UPDATE entities SET nome = 'Pessoal' WHERE tipo = 'CASAL' AND nome IN ('Orçamento da casa', 'Casa');`,
+  },
 ];

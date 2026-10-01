@@ -8,7 +8,7 @@ import { newId, slug } from "@core/ids";
 import { fmtMoney } from "@core/money";
 import { categoriaNome } from "@core/seed/categories";
 import { tabelaDesatualizada, type TaxTables } from "@core/tax/tables";
-import { Alert, Button, Card, Confirm, Dialog, Field, Input, Kbd, PageHeader, Pill, Select, Switch, TabPanel, Tabs, Textarea } from "@/components/ui";
+import { Alert, Button, Card, Confirm, Dialog, Field, InfoTip, Input, Kbd, PageHeader, Pill, Select, Switch, TabPanel, Tabs, Textarea } from "@/components/ui";
 import { useStore } from "@/state/store";
 
 export default function Configuracoes() {
@@ -30,7 +30,7 @@ export default function Configuracoes() {
   );
 }
 
-const TIPO_LABEL = { PESSOA: "Pessoa", CASAL: "Orçamento comum", AUTONOMO_PF: "Autônomo PF", PJ: "Empresa (PJ)" };
+const TIPO_LABEL = { PESSOA: "Pessoa", CASAL: "Orçamento comum", PJ: "Empresa (PJ)" };
 
 function Entidades() {
   const s = useStore();
@@ -41,12 +41,11 @@ function Entidades() {
     <div className="flex flex-col gap-3 max-w-4xl">
       <div className="flex gap-2 flex-wrap">
         <Button onClick={() => setEdit({ id: newId("ent"), tipo: "PESSOA", nome: "", config: {}, ativa: true })}><Plus size={14} /> Pessoa</Button>
-        {!s.entities.some((e) => e.tipo === "AUTONOMO_PF") && <Button onClick={() => setEdit({ id: newId("ent"), tipo: "AUTONOMO_PF", nome: "", config: { inssPlano: "normal20", donoPessoaId: pessoas[0]?.id }, ativa: true })}><Plus size={14} /> Autônomo PF</Button>}
         {!s.entities.some((e) => e.tipo === "PJ") && <Button onClick={() => setEdit({ id: newId("ent"), tipo: "PJ", nome: "", regime: "SIMPLES_III", config: { fatura: { moeda: "BRL", exportacao: false }, proLabore: { modo: "minimoFatorR" }, donoPessoaId: pessoas[0]?.id, mesTfe: 7 }, ativa: true })}><Plus size={14} /> Empresa</Button>}
       </div>
       <div className="table-wrap"><table className="data"><thead><tr><th>Nome</th><th>Tipo</th><th>Detalhes</th><th>Ativa</th><th></th></tr></thead>
         <tbody>{s.entities.map((e) => <tr key={e.id}><td className="font-medium">{e.nome}</td><td><Pill tone="muted">{TIPO_LABEL[e.tipo]}</Pill></td>
-          <td className="text-xs text-text-2">{e.tipo === "PJ" && `${e.regime} · ${e.municipio ?? ""}/${e.uf ?? ""} · ${e.config.fatura?.moeda ?? "BRL"}${e.config.fatura?.exportacao ? " exportação" : ""} · início ${e.config.inicioAtividade ?? "?"}`}{e.tipo === "PESSOA" && `renda estimada ${fmtMoney(e.config.rendaEstimada ?? 0)}`}{e.tipo === "AUTONOMO_PF" && `${e.config.profissao ?? ""} · ${Math.round((e.config.percentualInvestimento ?? 0) * 100)}% p/ investimento`}{e.tipo === "CASAL" && `divisão ${e.config.splitRule ?? "proporcional"}`}</td>
+          <td className="text-xs text-text-2">{e.tipo === "PJ" && `${e.regime} · ${e.municipio ?? ""}/${e.uf ?? ""} · ${e.config.fatura?.moeda ?? "BRL"}${e.config.fatura?.exportacao ? " exportação" : ""} · início ${e.config.inicioAtividade ?? "?"}`}{e.tipo === "PESSOA" && `renda estimada ${fmtMoney(e.config.rendaEstimada ?? 0)}`}{e.tipo === "CASAL" && `divisão ${e.config.splitRule ?? "proporcional"}`}</td>
           <td><Switch checked={e.ativa} onCheckedChange={(v) => s.upsertEntity({ ...e, ativa: v })} /></td><td><div className="flex gap-1 justify-end"><Button size="sm" onClick={() => setEdit(e)}>Editar</Button>{e.tipo !== "CASAL" && <Button size="sm" variant="ghost" onClick={() => setDel(e)}>Excluir</Button>}</div></td></tr>)}</tbody></table></div>
       {edit && <EntityForm ent={edit} onClose={() => setEdit(null)} />}
       <Confirm open={!!del} onOpenChange={(o) => !o && setDel(null)} title="Excluir entidade" message={`Excluir "${del?.nome}" e todos os seus lançamentos?`} danger onConfirm={() => { if (!del) return; s.deleteTransactions(s.transactions.filter((t) => t.entityId === del.id).map((t) => t.id)); s.deleteEntity(del.id); }} />
@@ -65,12 +64,7 @@ function EntityForm({ ent, onClose }: { ent: Entity; onClose: () => void }) {
         <Field label="Nome" className="col-span-2"><Input value={e.nome} onChange={(x) => setE({ ...e, nome: x.target.value })} /></Field>
         {e.tipo === "PESSOA" && <Field label="Renda estimada mensal"><Input className="mono" value={e.config.rendaEstimada ?? ""} onChange={(x) => cfg({ rendaEstimada: Number(x.target.value.replace(",", ".")) || 0 })} /></Field>}
         {e.tipo === "CASAL" && <Field label="Divisão"><Select value={e.config.splitRule ?? "proporcional"} onChange={(x) => cfg({ splitRule: x.target.value as "igual" })}><option value="proporcional">Proporcional à renda</option><option value="igual">50/50</option><option value="manual">Manual</option></Select></Field>}
-        {(e.tipo === "AUTONOMO_PF" || e.tipo === "PJ") && <Field label="Pessoa dona / sócio"><Select value={e.config.donoPessoaId ?? ""} onChange={(x) => cfg({ donoPessoaId: x.target.value })}><option value="">—</option>{pessoas.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}</Select></Field>}
-        {e.tipo === "AUTONOMO_PF" && (<>
-          <Field label="Profissão"><Input value={e.config.profissao ?? ""} onChange={(x) => cfg({ profissao: x.target.value })} /></Field>
-          <Field label="% do resultado para investimento"><Input className="mono" value={Math.round((e.config.percentualInvestimento ?? 0) * 100)} onChange={(x) => cfg({ percentualInvestimento: (Number(x.target.value) || 0) / 100 })} /></Field>
-          <div className="col-span-2"><Switch checked={!!e.config.profissaoRegulamentada} onCheckedChange={(v) => cfg({ profissaoRegulamentada: v })} label="Profissão regulamentada (não pode ser MEI)" /></div>
-        </>)}
+        {e.tipo === "PJ" && <Field label="Pessoa dona / sócio"><Select value={e.config.donoPessoaId ?? ""} onChange={(x) => cfg({ donoPessoaId: x.target.value })}><option value="">—</option>{pessoas.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}</Select></Field>}
         {e.tipo === "PJ" && (<>
           <Field label="CNPJ"><Input className="mono" value={e.documento ?? ""} onChange={(x) => setE({ ...e, documento: x.target.value })} /></Field>
           <Field label="Regime"><Select value={e.regime ?? "SIMPLES_III"} onChange={(x) => setE({ ...e, regime: x.target.value as RegimeTributario })}><option value="SIMPLES_III">Simples — Anexo III (Fator R)</option><option value="SIMPLES_V">Simples — Anexo V</option><option value="MEI">MEI</option><option value="PRESUMIDO">Lucro Presumido</option></Select></Field>
@@ -99,7 +93,7 @@ function EntityForm({ ent, onClose }: { ent: Entity; onClose: () => void }) {
 function Contas() {
   const s = useStore();
   const [edit, setEdit] = useState<Account | null>(null);
-  const donos = s.entities.filter((e) => e.tipo !== "AUTONOMO_PF" || true);
+  const donos = s.entities;
   return (
     <div className="flex flex-col gap-3 max-w-4xl">
       <div><Button variant="primary" onClick={() => setEdit({ id: newId("acc"), entityId: s.entities.find((e) => e.tipo === "CASAL")?.id ?? "", nome: "", tipo: "cartao", moeda: "BRL", ativa: true })}><Plus size={14} /> Conta / cartão</Button></div>
@@ -123,7 +117,7 @@ function Contas() {
 function Categorias() {
   const s = useStore();
   const [edit, setEdit] = useState<Category | null>(null);
-  const [filtro, setFiltro] = useState<"CASAL" | "AUTONOMO_PF" | "PJ">("CASAL");
+  const [filtro, setFiltro] = useState<"CASAL" | "PJ">("CASAL");
   const cats = s.categories.filter((c) => !c.escopo || c.escopo.includes(filtro));
   const raizes = cats.filter((c) => !c.parentId);
   const aprendidas = s.rules.filter((r) => r.aprendida);
@@ -131,14 +125,13 @@ function Categorias() {
     <div className="grid lg:grid-cols-[1fr_360px] gap-4">
       <div className="flex flex-col gap-3">
         <div className="flex gap-2 items-center flex-wrap">
-          {(["CASAL", "AUTONOMO_PF", "PJ"] as const).map((k) => <button key={k} className={`pill ${filtro === k ? "pill-accent" : "pill-muted"}`} onClick={() => setFiltro(k)}>{TIPO_LABEL[k]}</button>)}
-          <Button className="ml-auto" size="sm" variant="primary" onClick={() => setEdit({ id: "", nome: "", parentId: null, tipo: "despesa", fixa: false, dedutivelLivroCaixa: false, contaDre: null, escopo: [filtro, ...(filtro === "CASAL" ? ["PESSOA" as const] : [])] })}><Plus size={14} /> Categoria</Button>
+          {(["CASAL", "PJ"] as const).map((k) => <button key={k} className={`pill ${filtro === k ? "pill-accent" : "pill-muted"}`} onClick={() => setFiltro(k)}>{TIPO_LABEL[k]}</button>)}
+          <Button className="ml-auto" size="sm" variant="primary" onClick={() => setEdit({ id: "", nome: "", parentId: null, tipo: "despesa", fixa: false, contaDre: null, escopo: [filtro, ...(filtro === "CASAL" ? ["PESSOA" as const] : [])] })}><Plus size={14} /> Categoria</Button>
         </div>
-        <div className="table-wrap"><table className="data"><thead><tr><th>Categoria</th><th>Tipo</th><th>Fixa</th><th>Livro-caixa</th><th>Conta DRE</th><th></th></tr></thead>
-          <tbody>{raizes.flatMap((r) => [r, ...cats.filter((c) => c.parentId === r.id)]).map((c) => <tr key={c.id}><td style={{ paddingLeft: c.parentId ? 28 : 10 }}>{c.cor && !c.parentId && <span className="inline-block h-2.5 w-2.5 rounded-sm mr-2" style={{ background: c.cor }} />}{c.nome}</td><td className="text-text-2">{c.tipo}</td><td>{c.fixa ? "sim" : ""}</td><td>{c.dedutivelLivroCaixa ? <Pill tone="good">dedutível</Pill> : ""}</td><td className="text-xs text-text-3">{c.contaDre ?? ""}</td><td><Button size="sm" variant="ghost" onClick={() => setEdit(c)}>Editar</Button></td></tr>)}</tbody></table></div>
+        <div className="table-wrap"><table className="data"><thead><tr><th>Categoria</th><th>Tipo</th><th>Fixa</th><th>Conta DRE</th><th></th></tr></thead>
+          <tbody>{raizes.flatMap((r) => [r, ...cats.filter((c) => c.parentId === r.id)]).map((c) => <tr key={c.id}><td style={{ paddingLeft: c.parentId ? 28 : 10 }}>{c.cor && !c.parentId && <span className="inline-block h-2.5 w-2.5 rounded-sm mr-2" style={{ background: c.cor }} />}{c.nome}</td><td className="text-text-2">{c.tipo}</td><td>{c.fixa ? "sim" : ""}</td><td className="text-xs text-text-3">{c.contaDre ?? ""}</td><td><Button size="sm" variant="ghost" onClick={() => setEdit(c)}>Editar</Button></td></tr>)}</tbody></table></div>
       </div>
-      <Card title={`Regras aprendidas (${aprendidas.length})`}>
-        <p className="text-xs text-text-3 mb-2">Quando você corrige a categoria de um lançamento, o Dueto aprende a descrição para as próximas importações.</p>
+      <Card title={`Regras aprendidas (${aprendidas.length})`} info="Quando você corrige a categoria de um lançamento, o Dueto aprende a descrição para as próximas importações.">
         <ul className="text-sm divide-y divide-border max-h-96 overflow-y-auto">{aprendidas.map((r) => <li key={r.id} className="flex justify-between gap-2 py-1"><span className="truncate">"{r.pattern}" → {categoriaNome(r.categoryId, s.categories)}</span><button className="text-xs text-bad" onClick={() => s.deleteRule(r.id)}>remover</button></li>)}{aprendidas.length === 0 && <li className="py-2 text-text-3">Nenhuma ainda.</li>}</ul>
       </Card>
       {edit && <Dialog open onOpenChange={(o) => !o && setEdit(null)} title="Categoria" footer={<>{edit.id && <Button variant="danger" onClick={() => { s.deleteCategory(edit.id); setEdit(null); }}>Excluir</Button>}<Button onClick={() => setEdit(null)}>Cancelar</Button><Button variant="primary" disabled={!edit.nome.trim()} onClick={() => { s.upsertCategory({ ...edit, id: edit.id || `${slug(edit.nome)}-${newId().slice(0, 4)}` }); setEdit(null); }}>Salvar</Button></>}>
@@ -147,7 +140,7 @@ function Categorias() {
           <Field label="Categoria-pai"><Select value={edit.parentId ?? ""} onChange={(e) => setEdit({ ...edit, parentId: e.target.value || null })}><option value="">— (raiz)</option>{raizes.filter((r) => r.id !== edit.id).map((r) => <option key={r.id} value={r.id}>{r.nome}</option>)}</Select></Field>
           <Field label="Tipo"><Select value={edit.tipo} onChange={(e) => setEdit({ ...edit, tipo: e.target.value as "despesa" })}><option value="despesa">Despesa</option><option value="receita">Receita</option></Select></Field>
           {filtro === "PJ" && <Field label="Conta na DRE"><Select value={edit.contaDre ?? ""} onChange={(e) => setEdit({ ...edit, contaDre: (e.target.value || null) as Category["contaDre"] })}><option value="">—</option>{["receita_exportacao", "receita_nacional", "deducao_das", "deducao_iss", "prolabore", "salarios_encargos", "contabilidade_taxas", "software_internet", "bancarias_cambio", "outras_despesas", "depreciacao", "lucros_distribuidos", "reserva_caixa", "nao_operacional"].map((k) => <option key={k} value={k}>{k}</option>)}</Select></Field>}
-          <div className="col-span-2 flex gap-4"><Switch checked={edit.fixa} onCheckedChange={(v) => setEdit({ ...edit, fixa: v })} label="Despesa fixa" /><Switch checked={edit.dedutivelLivroCaixa} onCheckedChange={(v) => setEdit({ ...edit, dedutivelLivroCaixa: v })} label="Dedutível no livro-caixa" /></div>
+          <div className="col-span-2 flex gap-4"><Switch checked={edit.fixa} onCheckedChange={(v) => setEdit({ ...edit, fixa: v })} label="Despesa fixa" /></div>
         </div>
       </Dialog>}
     </div>
@@ -155,7 +148,7 @@ function Categorias() {
 }
 
 const KINDS: { kind: keyof TaxTables; label: string }[] = [
-  { kind: "irpf", label: "IRPF mensal (IRRF, carnê-leão)" }, { kind: "inss", label: "INSS (salário mínimo, teto, alíquotas)" }, { kind: "simplesAnexos", label: "Simples Nacional — Anexos III e V" },
+  { kind: "irpf", label: "IRPF mensal (IRRF)" }, { kind: "inss", label: "INSS (salário mínimo, teto, alíquotas)" }, { kind: "simplesAnexos", label: "Simples Nacional — Anexos III e V" },
   { kind: "simplesParams", label: "Simples — limites, Fator R, ISS" }, { kind: "mei", label: "MEI" }, { kind: "presumido", label: "Lucro Presumido" }, { kind: "iss", label: "ISS por município" }, { kind: "dividendos", label: "Dividendos" },
 ];
 
@@ -176,7 +169,7 @@ function Fiscal() {
   }
   return (
     <div className="flex flex-col gap-4">
-      <Alert tone="info">Tabelas versionadas por vigência: o cálculo de cada mês usa a vigência mais recente com data ≤ o mês. Confira todo ano e use "Adicionar vigência" (copia a mais recente para você editar os valores). Estimativas: confirme com seu contador.</Alert>
+      <p className="text-sm text-text-2 flex items-center gap-1.5">Tabelas fiscais por vigência <InfoTip>O cálculo de cada mês usa a vigência ativa mais recente com data ≤ o mês. Sem nenhuma vigência ativa, o Dueto usa a tabela padrão do app. Confira todo ano e use "Adicionar vigência" (copia a mais recente para você editar os valores). Estimativas: confirme com seu contador.</InfoTip></p>
       {KINDS.map(({ kind, label }) => {
         const list = s.taxTables[kind] as ({ id: string; vigenciaInicio: string; ativa: boolean; descricao?: string; origem?: string })[];
         const velha = (kind === "irpf" || kind === "inss") && tabelaDesatualizada(list, hoje);
@@ -229,7 +222,7 @@ function Sobre() {
     <div className="flex flex-col gap-4 max-w-3xl text-sm">
       <Card title={`Dueto ${s.info?.version ?? "(dev)"}`}>
         <p className="text-text-2">Organização financeira PF e PJ para devs. Funciona sem internet; seus dados ficam só neste computador. Licença MIT.</p>
-        <p className="text-text-2 mt-2"><b>Aviso:</b> todos os valores de impostos (DAS, DARF, carnê-leão, INSS, dividendos) são estimativas calculadas a partir de tabelas que mudam todo ano. Confirme com seu contador antes de recolher.</p>
+        <p className="text-text-2 mt-2"><b>Aviso:</b> todos os valores de impostos (DAS, DARF, INSS, dividendos) são estimativas calculadas a partir de tabelas que mudam todo ano. Confirme com seu contador antes de recolher.</p>
       </Card>
       <Card title="Atalhos de teclado">
         <ul className="grid sm:grid-cols-2 gap-1">

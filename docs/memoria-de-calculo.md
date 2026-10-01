@@ -35,8 +35,6 @@ A escolha da vigência é "a mais recente com data ≤ dia 1 do mês de competê
 ## 3. INSS
 
 - Pró-labore 5.000 → 550,00. Pró-labore 20.000 → base limitada a 8.475,55 → **932,31**.
-- Contribuinte individual plano normal, base 3.000 → 600,00 (GPS 1007). Base 100 → ajustada ao mínimo (1.621). Base 99.999 → limitada ao teto.
-- Plano simplificado → 11% × 1.621 = **178,31** (GPS 1163), independentemente da renda.
 
 ## 4. Simples Nacional
 
@@ -74,23 +72,17 @@ A escolha da vigência é "a mais recente com data ≤ dia 1 do mês de competê
 ### DAS: vencimento
 Dia 20 do mês seguinte, empurrado para o próximo dia útil (fim de semana/feriado nacional fixo).
 
-## 5. Carnê-leão
-
-- Jun/2025: receitas PF 1.000, livro-caixa 1.500 → usa 1.000, transporta 500; imposto 0.
-- Jul/2025: receitas 6.000, livro-caixa 500 + 500 transportado = 1.000, INSS 303,60 → base 4.696,40 → 27,5% − 908,73 = **382,78**; DARF 0190 até 29/08/2025 (último dia útil).
-- O excedente do livro-caixa **não** passa de um ano para o outro.
-
-## 6. Outros regimes
+## 5. Outros regimes
 
 - **MEI 2026**: 5% × 1.621 + ISS 5 = **86,05**/mês; acima de 81.000/ano alerta de estouro.
 - **Lucro Presumido**, receita 30.000 (100% exportação), ISS 2,9%: base 9.600 → IRPJ 1.440 + CSLL 864 + PIS 0 + COFINS 0 + ISS 0 = **2.304** (carga 7,68%).
 
-## 7. Lucros
+## 6. Lucros
 
 - Sem escrituração: receita 100.000, IRPJ no DAS 240 → limite isento 100.000 × 32% − 240 = **31.760**.
 - Dividendos 2026: 40.000 no mês → sem retenção; 60.000 → retenção 10% = **6.000**.
 
-## 8. Parcelamento e expressões
+## 7. Parcelamento e expressões
 
 - "Óculos (06/10)" em set/2026, R$ 87 → gera 07/10 (out/26) … 10/10 (jan/27); "faltam 4".
 - `=120+150` → 270 (guarda a expressão); `=13.35+132.31+34.68+99.08+90.86+118.69+3.5` → 492,47; `=3676.06-88.81-125` → 3.462,25; `1.234,56` → 1234,56; `-` → 0.

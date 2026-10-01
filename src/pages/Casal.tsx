@@ -1,4 +1,4 @@
-/** Módulo Casa: resumo do mês, lançamentos, quem paga o quê, metas, objetivos, cartões e recorrências. */
+/** Módulo Pessoal (finanças da casa/casal): resumo do mês, lançamentos, quem paga o quê, metas, objetivos, cartões e recorrências. */
 import { useMemo, useState } from "react";
 import { Plus, RefreshCw } from "lucide-react";
 import type { Budget, Goal, Transaction } from "@core/domain/types";
@@ -7,7 +7,7 @@ import { addMonths, dateInMonth, fmtDate, fmtMonth, todayISO } from "@core/dates
 import { newId } from "@core/ids";
 import { fmtMoney, fmtPct, round2 } from "@core/money";
 import { categoriaNome, categoriaRaiz } from "@core/seed/categories";
-import { Button, Card, Confirm, Dialog, Field, Input, Money, PageHeader, Pill, Progress, Select, Stat, Switch, TabPanel, Tabs } from "@/components/ui";
+import { Button, Card, Confirm, Dialog, Field, InfoTip, Input, Money, PageHeader, Pill, Progress, Select, Stat, Switch, TabPanel, Tabs } from "@/components/ui";
 import { DonutChart } from "@/components/charts";
 import { TransactionForm } from "@/components/TransactionForm";
 import { TransactionTable } from "@/components/TransactionTable";
@@ -32,7 +32,10 @@ export default function Casal() {
     const recs = s.recurrences.filter((r) => r.ativa && ids.includes(r.entityId) && r.inicio <= mk && (!r.fim || r.fim >= mk) && (r.periodicidade === "mensal" || r.mesVencimento === Number(mk.slice(5, 7))));
     const novos = recs.filter((r) => !s.transactions.some((t) => t.recorrenciaId === r.id && t.competencia === mk)).map((r) =>
       novoTx({ entityId: r.entityId, kind: r.kind, competencia: mk, descricao: r.descricao, valor: r.valorPadrao, categoryId: r.categoryId, accountId: r.accountId, vencimento: dateInMonth(mk, r.diaVencimento), recorrenciaId: r.id, moeda: r.moeda, valorBrl: r.moeda === "BRL" ? r.valorPadrao : 0 }));
+    if (recs.length === 0) return s.notificar("Nenhuma recorrência ativa para este mês. Ao criar ou editar um lançamento, ligue \"Repetir todo mês\".");
+    if (novos.length === 0) return s.notificar(`Os lançamentos recorrentes de ${fmtMonth(mk, "long")} já existem.`);
     s.upsertTransactions(novos);
+    s.notificar(`${novos.length} lançamento${novos.length > 1 ? "s" : ""} recorrente${novos.length > 1 ? "s" : ""} criado${novos.length > 1 ? "s" : ""} em ${fmtMonth(mk, "long")}.`);
   }
 
   return (
@@ -52,7 +55,7 @@ export default function Casal() {
       <Tabs value={tab} onValueChange={setTab} items={[{ value: "lancamentos", label: "Lançamentos" }, { value: "quem", label: "Quem paga o quê" }, { value: "metas", label: "Metas" }, { value: "objetivos", label: "Objetivos" }, { value: "cartoes", label: "Cartões" }, { value: "recorrencias", label: "Recorrências" }]}>
         <TabPanel value="lancamentos">
           <div className="grid xl:grid-cols-[1fr_320px] gap-4">
-            <TransactionTable rows={rows} onEdit={(t) => setForm({ open: true, entityId: t.entityId, initial: t })} exportName={`casa-${mk}`} />
+            <TransactionTable rows={rows} onEdit={(t) => setForm({ open: true, entityId: t.entityId, initial: t })} exportName={`pessoal-${mk}`} />
             <Card title="Despesas por categoria"><DonutChart data={porCategoria} height={200} /></Card>
           </div>
         </TabPanel>
@@ -84,10 +87,9 @@ function QuemPaga({ rows }: { rows: Transaction[] }) {
         <Field label="Regra de divisão"><Select value={regra} onChange={(e) => s.upsertEntity({ ...casal, config: { ...casal.config, splitRule: e.target.value as "igual" } })}><option value="proporcional">Proporcional à renda do mês</option><option value="igual">50/50</option><option value="manual">Manual (%)</option></Select></Field>
         {regra === "manual" && pessoas.map((p) => <Field key={p.id} label={`${p.nome} (%)`}><Input className="mono w-24" value={casal.config.splitManual?.[p.id] ?? ""} onChange={(e) => s.upsertEntity({ ...casal, config: { ...casal.config, splitManual: { ...(casal.config.splitManual ?? {}), [p.id]: Number(e.target.value) } } })} /></Field>)}
       </div>
-      <div className="table-wrap"><table className="data"><thead><tr><th>Pessoa</th><th className="r">Renda</th><th className="r">Parte</th><th className="r">Deveria pagar</th><th className="r">Pagou</th><th className="r">Transferir ao comum</th></tr></thead>
+      <div className="table-wrap"><table className="data"><thead><tr><th>Pessoa</th><th className="r">Renda</th><th className="r">Parte</th><th className="r">Deveria pagar</th><th className="r">Pagou</th><th className="r"><span className="inline-flex items-center gap-1">Transferir ao comum <InfoTip>"Pagou" considera o campo "quem pagou" dos lançamentos. Valor positivo em "transferir" = a pessoa ainda deve para a conta comum.</InfoTip></span></th></tr></thead>
         <tbody>{r.porPessoa.map((p) => <tr key={p.pessoaId}><td>{p.nome}</td><td className="r num">{fmtMoney(p.renda)}</td><td className="r num">{fmtPct(p.percentual)}</td><td className="r num">{fmtMoney(p.deveriaPagar)}</td><td className="r num">{fmtMoney(p.pagou)}</td><td className="r"><Money v={p.transferir} signed /></td></tr>)}
           <tr><td className="font-semibold">Despesas comuns</td><td colSpan={2}></td><td className="r num font-semibold">{fmtMoney(r.totalComum)}</td><td colSpan={2}></td></tr></tbody></table></div>
-      <p className="text-xs text-text-3">"Pagou" considera o campo "quem pagou" dos lançamentos. Positivo em "transferir" = ainda deve para a conta comum.</p>
     </div>
   );
 }
@@ -194,7 +196,7 @@ export function Recorrencias({ entityIds }: { entityIds: string[] }) {
       <table className="data"><thead><tr><th>Descrição</th><th>Categoria</th><th>Periodicidade</th><th className="r">Dia</th><th className="r">Valor</th><th>Início</th><th>Ativa</th><th></th></tr></thead>
         <tbody>
           {recs.map((r) => <tr key={r.id}><td>{r.descricao}</td><td className="text-text-2">{categoriaNome(r.categoryId, s.categories)}</td><td>{r.periodicidade}</td><td className="r num">{r.diaVencimento}</td><td className="r num">{fmtMoney(r.valorPadrao, r.moeda)}</td><td className="num">{fmtMonth(r.inicio)}</td><td><Switch checked={r.ativa} onCheckedChange={(v) => s.upsertRecurrence({ ...r, ativa: v })} /></td><td><Button size="sm" variant="ghost" onClick={() => s.deleteRecurrence(r.id)}>Excluir</Button></td></tr>)}
-          {recs.length === 0 && <tr><td colSpan={8} className="text-center text-text-3 py-6">Nenhuma recorrência. Marque "Repetir todo mês" ao criar um lançamento. Use "Gerar recorrências" para criar os lançamentos de {fmtMonth(addMonths(s.competencia, 0))}.</td></tr>}
+          {recs.length === 0 && <tr><td colSpan={8} className="text-center text-text-3 py-6">Nenhuma recorrência. Abra um lançamento (novo ou existente) e ligue "Repetir todo mês"; depois, em cada mês, "Gerar recorrências" cria os lançamentos de {fmtMonth(addMonths(s.competencia, 0))}.</td></tr>}
         </tbody></table>
     </div>
   );

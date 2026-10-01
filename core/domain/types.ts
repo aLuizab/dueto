@@ -3,7 +3,7 @@
  * Tudo aqui é independente de UI e de banco: o core opera sobre estes objetos.
  */
 
-export type EntityType = "PESSOA" | "AUTONOMO_PF" | "PJ" | "CASAL";
+export type EntityType = "PESSOA" | "PJ" | "CASAL";
 export type Currency = "BRL" | "USD" | "EUR";
 export type TxStatus = "pendente" | "pago" | "conciliado";
 export type TxKind = "receita" | "despesa" | "transferencia";
@@ -47,20 +47,12 @@ export interface EntityConfig {
   fatorRMetodo?: "anterior12" | "corrente12" | "mensal";
   /** comparar com 28% após arredondar a 2 casas (default true, como o PGDAS-D) */
   fatorRArredondar?: boolean;
-  /** AUTONOMO_PF */
-  percentualInvestimento?: number; // ex.: 0.5
-  inssPlano?: "normal20" | "simplificado11";
-  inssBase?: number;
-  inssValorMensal?: number;
-  profissaoRegulamentada?: boolean;
-  profissao?: string;
-  aplicarRedutorCarneLeao?: boolean;
   /** CASAL: zerar o "restante do mês anterior" em vez de carregar */
   zerarRestante?: boolean;
   /** CASAL */
   splitRule?: SplitRule;
   splitManual?: Record<string, number>;
-  /** dono (PESSOA) de uma entidade AUTONOMO_PF ou PJ */
+  /** dono (PESSOA) de uma entidade PJ */
   donoPessoaId?: string;
 }
 
@@ -83,7 +75,6 @@ export interface Category {
   parentId?: string | null;
   tipo: "receita" | "despesa";
   fixa: boolean;
-  dedutivelLivroCaixa: boolean;
   /** conta da DRE onde esta categoria é somada (só entidades PJ) */
   contaDre?: DreConta | null;
   escopo?: EntityType[]; // em quais tipos de entidade aparece
@@ -135,8 +126,6 @@ export interface Transaction {
   pagoPor?: string | null;
   /** para receitas PJ: id do cliente/plataforma */
   clientId?: string | null;
-  /** para AUTONOMO_PF: paciente */
-  patientId?: string | null;
   /** receita marcada como exportação de serviço */
   exportacao?: boolean;
   invoiceId?: string | null;
@@ -189,14 +178,6 @@ export interface Client {
   tipo: "plataforma" | "cliente_final";
   pais?: string;
   moeda: Currency;
-}
-
-export interface Patient {
-  id: string;
-  entityId: string;
-  nome: string;
-  valorConsulta?: number | null;
-  ativo: boolean;
 }
 
 export interface Investment {

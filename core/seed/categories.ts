@@ -4,17 +4,15 @@
  */
 import type { Category, DreConta, EntityType } from "../domain/types";
 
-type Seed = { id: string; nome: string; parent?: string; tipo?: "receita" | "despesa"; fixa?: boolean; dedutivel?: boolean; dre?: DreConta; escopo: EntityType[]; cor?: string; icone?: string };
+type Seed = { id: string; nome: string; parent?: string; tipo?: "receita" | "despesa"; fixa?: boolean; dre?: DreConta; escopo: EntityType[]; cor?: string; icone?: string };
 
 const CASAL: EntityType[] = ["CASAL", "PESSOA"];
-const PF: EntityType[] = ["AUTONOMO_PF"];
 const PJ: EntityType[] = ["PJ"];
 
 const S: Seed[] = [
   // ---------- receitas (casal) ----------
   { id: "rec-salario", nome: "Salário / pró-labore", tipo: "receita", escopo: CASAL, icone: "wallet" },
   { id: "rec-lucros", nome: "Distribuição de lucros", tipo: "receita", escopo: CASAL, icone: "coins" },
-  { id: "rec-autonomo", nome: "Renda autônoma", tipo: "receita", escopo: CASAL, icone: "stethoscope" },
   { id: "rec-restante", nome: "Restante do mês anterior", tipo: "receita", escopo: CASAL, icone: "rotate-ccw" },
   { id: "rec-outras", nome: "Outras receitas", tipo: "receita", escopo: CASAL, icone: "plus-circle" },
 
@@ -71,21 +69,6 @@ const S: Seed[] = [
   { id: "casa-compras", nome: "Casa / compras", fixa: false, escopo: CASAL, cor: "#22d3ee", icone: "shopping-bag" },
   { id: "outros", nome: "Outros", fixa: false, escopo: CASAL, cor: "#9ca3af", icone: "circle-dashed" },
 
-  // ---------- autônomo PF (genérico: freelas, consultoria, aulas, atendimentos) ----------
-  { id: "pf-rec-consulta", nome: "Serviços / atendimentos", tipo: "receita", escopo: PF, icone: "briefcase" },
-  { id: "pf-rec-pacote", nome: "Pacotes / parcelados", tipo: "receita", escopo: PF },
-  { id: "pf-rec-outras", nome: "Outras receitas", tipo: "receita", escopo: PF },
-  { id: "pf-aluguel-sala", nome: "Aluguel de espaço / coworking", fixa: true, dedutivel: true, escopo: PF },
-  { id: "pf-software", nome: "Software profissional", fixa: true, dedutivel: true, escopo: PF },
-  { id: "pf-materiais", nome: "Materiais e equipamentos", fixa: false, dedutivel: true, escopo: PF },
-  { id: "pf-conselho", nome: "Conselho / registro profissional", fixa: true, dedutivel: true, escopo: PF },
-  { id: "pf-cursos", nome: "Cursos e eventos da profissão", fixa: false, dedutivel: true, escopo: PF },
-  { id: "pf-inss", nome: "INSS (contribuinte individual)", fixa: true, dedutivel: true, escopo: PF },
-  { id: "pf-carne-leao", nome: "Carnê-leão (DARF 0190)", fixa: true, dedutivel: false, escopo: PF },
-  { id: "pf-transporte", nome: "Deslocamento", fixa: false, dedutivel: false, escopo: PF },
-  { id: "pf-investimento", nome: "Aporte para investimento", fixa: false, dedutivel: false, escopo: PF },
-  { id: "pf-outras", nome: "Outras despesas", fixa: false, dedutivel: false, escopo: PF },
-
   // ---------- PJ ----------
   { id: "pj-rec-exportacao", nome: "Receita de exportação de serviços", tipo: "receita", dre: "receita_exportacao", escopo: PJ },
   { id: "pj-rec-nacional", nome: "Receita nacional de serviços", tipo: "receita", dre: "receita_nacional", escopo: PJ },
@@ -115,7 +98,6 @@ export const SEED_CATEGORIES: Category[] = S.map((s) => ({
   parentId: s.parent ?? null,
   tipo: s.tipo ?? "despesa",
   fixa: s.fixa ?? false,
-  dedutivelLivroCaixa: s.dedutivel ?? false,
   contaDre: s.dre ?? null,
   escopo: s.escopo,
   cor: s.cor,

@@ -23,17 +23,16 @@ export function CommandPalette() {
   const items = useMemo<Item[]>(() => {
     const n = normalizeText(q);
     const go = (to: string) => () => { s.setBusca(false); nav(to); };
-    const temAutonomo = s.entities.some((e) => e.tipo === "AUTONOMO_PF" && e.ativa);
     const telas: Item[] = [
-      { id: "t1", titulo: "Visão geral", grupo: "Telas", run: go("/") }, { id: "t2", titulo: "Casa (finanças do casal)", grupo: "Telas", run: go("/casal") },
-      { id: "t3", titulo: "Empresa (PJ)", grupo: "Telas", run: go("/pj") }, ...(temAutonomo ? [{ id: "t4", titulo: "Autônomo", grupo: "Telas", run: go("/consultorio") }] : []),
+      { id: "t1", titulo: "Visão geral", grupo: "Telas", run: go("/") }, { id: "t2", titulo: "Pessoal (finanças da casa)", grupo: "Telas", run: go("/pessoal") },
+      { id: "t3", titulo: "Empresa (PJ)", grupo: "Telas", run: go("/pj") },
       { id: "t5", titulo: "Investimentos", grupo: "Telas", run: go("/investimentos") }, { id: "t6", titulo: "Importar planilhas / extratos", grupo: "Telas", run: go("/importar") },
       { id: "t7", titulo: "Configurações e tabelas fiscais", grupo: "Telas", run: go("/config") }, { id: "t8", titulo: "Backup", grupo: "Telas", run: go("/config#backup") },
     ];
     if (!n) return telas;
     const out: Item[] = telas.filter((t) => normalizeText(t.titulo).includes(n));
     const ent = (id: string) => s.entities.find((e) => e.id === id);
-    const rota = (t: { entityId: string }) => { const e = ent(t.entityId); return e?.tipo === "PJ" ? "/pj" : e?.tipo === "AUTONOMO_PF" ? "/consultorio" : "/casal"; };
+    const rota = (t: { entityId: string }) => { const e = ent(t.entityId); return e?.tipo === "PJ" ? "/pj" : "/pessoal"; };
     let count = 0;
     for (const t of s.transactions) {
       if (count >= 40) break;
@@ -42,7 +41,6 @@ export function CommandPalette() {
         out.push({ id: t.id, titulo: t.descricao, sub: `${fmtDate(t.vencimento ?? t.pagamento) || t.competencia} · ${fmtMoney(t.valorBrl)} · ${ent(t.entityId)?.nome ?? ""}`, grupo: "Lançamentos", run: () => { s.setBusca(false); s.setCompetencia(t.competencia); nav(rota(t)); } });
       }
     }
-    for (const p of s.patients) if (normalizeText(p.nome).includes(n)) out.push({ id: p.id, titulo: p.nome, grupo: "Clientes (autônomo)", run: go("/consultorio") });
     for (const c of s.clients) if (normalizeText(c.nome).includes(n)) out.push({ id: c.id, titulo: c.nome, grupo: "Clientes", run: go("/pj") });
     for (const i of s.investments) if (normalizeText(i.nome).includes(n)) out.push({ id: i.id, titulo: i.nome, grupo: "Investimentos", run: go("/investimentos") });
     return out;

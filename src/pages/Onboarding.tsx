@@ -18,8 +18,6 @@ export default function Onboarding() {
   const [nomeOrc, setNomeOrc] = useState("");
   const [pessoas, setPessoas] = useState([{ nome: "", renda: "" }]);
   const [split, setSplit] = useState<SplitRule>("proporcional");
-  const [temAutonomo, setTemAutonomo] = useState(false);
-  const [aut, setAut] = useState({ nome: "", profissao: "", regulamentada: false, dono: 0, pct: "", plano: "normal20" as "normal20" | "simplificado11" });
   const [temPJ, setTemPJ] = useState(false);
   const [pj, setPj] = useState({ nome: "", cnpj: "", municipio: "", uf: "", regime: "" as RegimeTributario | "", exporta: false, moeda: "BRL" as "USD" | "EUR" | "BRL", inicio: "", dono: 0, escrituracao: false });
   const [modo, setModo] = useState<"zero" | "exemplo" | "importar" | null>(null);
@@ -28,7 +26,7 @@ export default function Onboarding() {
   const pessoasValidas = pessoas.filter((p) => p.nome.trim());
 
   function concluir() {
-    const casal: Entity = { id: newId("ent"), tipo: "CASAL", nome: nomeOrc.trim() || "Orçamento da casa", config: { splitRule: split }, ativa: true };
+    const casal: Entity = { id: newId("ent"), tipo: "CASAL", nome: nomeOrc.trim() || "Pessoal", config: { splitRule: split }, ativa: true };
     s.upsertEntity(casal);
     const ids: string[] = [];
     for (const p of pessoasValidas) {
@@ -36,7 +34,6 @@ export default function Onboarding() {
       s.upsertEntity(e);
       ids.push(e.id);
     }
-    if (temAutonomo) s.upsertEntity({ id: newId("ent"), tipo: "AUTONOMO_PF", nome: aut.nome.trim() || "Atividade autônoma", config: { percentualInvestimento: (Number(aut.pct.replace(",", ".")) || 0) / 100, inssPlano: aut.plano, profissaoRegulamentada: aut.regulamentada, profissao: aut.profissao, donoPessoaId: ids[aut.dono] ?? ids[0] }, ativa: true });
     if (temPJ) s.upsertEntity({ id: newId("ent"), tipo: "PJ", nome: pj.nome.trim() || "Empresa", documento: pj.cnpj || undefined, municipio: pj.municipio.trim() || undefined, uf: pj.uf || undefined, regime: (pj.regime || "SIMPLES_III") as RegimeTributario, config: { fatura: { moeda: pj.moeda, exportacao: pj.exporta }, inicioAtividade: pj.inicio || currentMonthKey(), proLabore: { modo: "minimoFatorR" }, escrituracaoContabil: pj.escrituracao, donoPessoaId: ids[pj.dono] ?? ids[0], mesTfe: 7 }, ativa: true });
     s.setSetting("onboarding.done", new Date().toISOString());
     void s.setBackupAuto(backupAuto);
@@ -58,7 +55,7 @@ export default function Onboarding() {
     s.upsertTransactions(txs.map((t) => ({ ...t, valorBrl: t.valor, tags: ["exemplo"] })));
   }
 
-  const steps = ["Como usar", "Perfil", "Pessoas", "Autônomo (opcional)", "Empresa", "Dados", "Backup", "Tabelas fiscais"];
+  const steps = ["Como usar", "Perfil", "Pessoas", "Empresa", "Dados", "Backup", "Tabelas fiscais"];
 
   return (
     <div className="h-full overflow-y-auto">
@@ -77,7 +74,7 @@ export default function Onboarding() {
           </>)}
           {step === 1 && (<>
             <h2 className="font-semibold">Perfil</h2>
-            <Field label="Nome do orçamento"><Input value={nomeOrc} onChange={(e) => setNomeOrc(e.target.value)} placeholder="Ex.: Casa, Família Souza" /></Field>
+            <Field label="Nome do orçamento"><Input value={nomeOrc} onChange={(e) => setNomeOrc(e.target.value)} placeholder="Ex.: Pessoal, Família Souza" /></Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Moeda base"><Input value="BRL — real" disabled /></Field>
               <Field label="Idioma"><Input value="Português (Brasil)" disabled /></Field>
@@ -99,20 +96,6 @@ export default function Onboarding() {
             </Field>
           </>)}
           {step === 3 && (<>
-            <h2 className="font-semibold">Alguém é autônomo pessoa física? <span className="text-text-3 font-normal text-sm">(opcional, pode pular)</span></h2>
-            <p className="text-sm text-text-3">Só para quem tem renda como pessoa física fora de um emprego: freelas, consultoria, aulas, atendimentos, qualquer serviço sem CNPJ. Se não for o seu caso, deixe desligado: a tela "Autônomo" não aparece no menu e pode ser ativada depois em Configurações → Entidades.</p>
-            <Switch checked={temAutonomo} onCheckedChange={setTemAutonomo} label="Sim, há renda de autônomo (serviços prestados como pessoa física)" />
-            {temAutonomo && (<div className="grid sm:grid-cols-2 gap-3">
-              <Field label="Nome da atividade"><Input value={aut.nome} onChange={(e) => setAut({ ...aut, nome: e.target.value })} placeholder="Ex.: Freelas, Consultoria, Aulas" /></Field>
-              <Field label="Profissão"><Input value={aut.profissao} onChange={(e) => setAut({ ...aut, profissao: e.target.value })} placeholder="ex.: desenvolvedor, designer, nutricionista" /></Field>
-              <Field label="De quem é a renda"><Select value={aut.dono} onChange={(e) => setAut({ ...aut, dono: Number(e.target.value) })}>{pessoasValidas.map((p, i) => <option key={i} value={i}>{p.nome}</option>)}</Select></Field>
-              <Field label="% do resultado para investimento" hint="Opcional"><Input className="mono" value={aut.pct} onChange={(e) => setAut({ ...aut, pct: e.target.value })} placeholder="Ex.: 50" /></Field>
-              <Field label="INSS contribuinte individual"><Select value={aut.plano} onChange={(e) => setAut({ ...aut, plano: e.target.value as "normal20" })}><option value="normal20">Plano normal (20%)</option><option value="simplificado11">Plano simplificado (11% do mínimo)</option></Select></Field>
-              <div className="flex items-end"><Switch checked={aut.regulamentada} onCheckedChange={(v) => setAut({ ...aut, regulamentada: v })} label="Profissão regulamentada" /></div>
-              {aut.regulamentada && <div className="sm:col-span-2"><Alert tone="warn">Profissões regulamentadas (nutrição, psicologia, medicina, engenharia, advocacia etc.) não podem ser MEI. A tributação aqui é carnê-leão com livro-caixa.</Alert></div>}
-            </div>)}
-          </>)}
-          {step === 4 && (<>
             <h2 className="font-semibold">Tem empresa (PJ)?</h2>
             <Switch checked={temPJ} onCheckedChange={setTemPJ} label="Sim, há uma empresa prestadora de serviços" />
             {temPJ && (<div className="grid sm:grid-cols-2 gap-3">
@@ -128,7 +111,7 @@ export default function Onboarding() {
               <div className="flex items-end"><Switch checked={pj.escrituracao} onCheckedChange={(v) => setPj({ ...pj, escrituracao: v })} label="Mantém escrituração contábil" /></div>
             </div>)}
           </>)}
-          {step === 5 && (<>
+          {step === 4 && (<>
             <h2 className="font-semibold">Como começar?</h2>
             <div className="grid sm:grid-cols-3 gap-2">
               {([["importar", "Importar extratos", "Extratos do banco e faturas de cartão em CSV ou OFX; as categorias são sugeridas automaticamente."], ["zero", "Começar do zero", "Cadastre lançamentos manualmente."], ["exemplo", "Dados de exemplo", "Alguns lançamentos fictícios, marcados como exemplo, para conhecer o app."]] as const).map(([k, t, d]) => (
@@ -136,13 +119,13 @@ export default function Onboarding() {
               ))}
             </div>
           </>)}
-          {step === 6 && (<>
+          {step === 5 && (<>
             <h2 className="font-semibold">Backup automático</h2>
             <p className="text-sm text-text-2">Tudo o que você digita é salvo na hora, no seu computador. Além disso, o Dueto pode guardar uma cópia compactada do banco uma vez por dia, mantendo as 30 mais recentes. Nada sai da sua máquina.</p>
             <Switch checked={backupAuto} onCheckedChange={setBackupAuto} label="Aceito que o Dueto faça um backup diário automático na pasta de dados" />
             <p className="text-xs text-text-3">Você pode mudar isso depois em Configurações → Backup, e exportar ou restaurar uma cópia a qualquer momento.</p>
           </>)}
-          {step === 7 && (<>
+          {step === 6 && (<>
             <h2 className="font-semibold">Tabelas fiscais</h2>
             <p className="text-sm text-text-2">O Dueto vem com tabelas versionadas por vigência (IRPF, INSS, Simples Nacional Anexos III e V, MEI, Lucro Presumido, ISS de São Paulo). Elas mudam todo ano: confira em <b>Configurações → Tabelas fiscais</b> e use <b>Adicionar vigência</b> quando sair uma nova. O app avisa quando a tabela mais recente ficar velha.</p>
             <Alert tone="info">Todos os valores de impostos são estimativas. Confirme com seu contador antes de recolher.</Alert>
@@ -151,7 +134,7 @@ export default function Onboarding() {
         <div className="flex justify-between">
           <Button onClick={() => setStep(step - 1)} disabled={step === 0}>Voltar</Button>
           {step < steps.length - 1 ? (
-            <Button variant="primary" onClick={() => setStep(step + 1)} disabled={(step === 2 && pessoasValidas.length === 0) || (step === 4 && temPJ && !pj.regime) || (step === 5 && !modo)}>{step === 0 ? "Começar" : "Continuar"}</Button>
+            <Button variant="primary" onClick={() => setStep(step + 1)} disabled={(step === 2 && pessoasValidas.length === 0) || (step === 3 && temPJ && !pj.regime) || (step === 4 && !modo)}>{step === 0 ? "Começar" : "Continuar"}</Button>
           ) : (
             <Button variant="primary" onClick={concluir} disabled={pessoasValidas.length === 0}>Concluir</Button>
           )}

@@ -12,19 +12,19 @@ const PASSOS: { titulo: string; texto: React.ReactNode }[] = [
   },
   {
     titulo: "Acompanhe o mês",
-    texto: <>Escolha o mês no topo da tela. A <b>Visão geral</b> mostra o saldo da casa, a receita da empresa, os impostos do mês, contas vencidas e os próximos vencimentos. Marque como pago clicando na caixa ao lado de cada lançamento.</>,
+    texto: <>Escolha o mês no topo da tela. A <b>Visão geral</b> mostra o saldo pessoal, a receita da empresa, os impostos do mês, contas vencidas e os próximos vencimentos. Marque como pago clicando na caixa ao lado de cada lançamento.</>,
   },
   {
     titulo: "Organize a casa",
-    texto: <>Em <b>Casa</b>, veja receitas por pessoa, despesas fixas e variáveis, quanto cada um deve transferir para o comum, metas por categoria, objetivos e faturas de cartão. Marque "Repetir todo mês" nas contas fixas e use <b>Gerar recorrências</b> a cada mês.</>,
+    texto: <>Em <b>Pessoal</b>, veja receitas por pessoa, despesas fixas e variáveis, quanto cada um deve transferir para o comum, metas por categoria, objetivos e faturas de cartão. Marque "Repetir todo mês" nas contas fixas e use <b>Gerar recorrências</b> a cada mês.</>,
   },
   {
     titulo: "Cuide da empresa",
     texto: <>Em <b>Empresa</b>, registre os recebimentos (em dólar, com a cotação do dia) e as notas. Na aba <b>Impostos</b>, ligue só o que a empresa recolhe e digite o valor que vai pagar; o Dueto mostra a estimativa ao lado. A aba <b>Balanço</b> prevê lucro, impostos e retiradas nos próximos meses. Em <b>Pró-labore</b>, salve o valor do mês: o app gera o DARF e lança o líquido como receita da pessoa na Casa. <b>DRE</b> exporta o pacote para o contador.</>,
   },
   {
-    titulo: "Autônomo e investimentos",
-    texto: <>Em <b>Autônomo</b> (só aparece se você ativar), lance os recebimentos por cliente e as despesas do livro-caixa; o carnê-leão e o INSS são calculados por mês. Em <b>Investimentos</b>, cadastre os produtos e registre o saldo de cada um uma vez por mês para ver rentabilidade e evolução.</>,
+    titulo: "Investimentos",
+    texto: <>Em <b>Investimentos</b>, cadastre os produtos e registre o saldo de cada um uma vez por mês para ver rentabilidade e evolução.</>,
   },
   {
     titulo: "Mantenha em dia",

@@ -38,8 +38,6 @@ export interface InssTable {
   salarioMinimo: number;
   teto: number;
   /** contribuinte individual / pró-labore */
-  aliquotaContribuinteIndividual: number; // 0.20 (plano normal), aplica sobre o salário de contribuição
-  aliquotaPlanoSimplificado: number; // 0.11 — somente sobre o salário mínimo
   aliquotaProLabore: number; // 0.11 retido do sócio (a CPP patronal 20% está no DAS no Anexo III)
   ativa: boolean;
   origem: "seed" | "usuario" | "importacao";
@@ -198,8 +196,6 @@ export const SEED_INSS: InssTable[] = [
     descricao: "INSS 2025 — salário mínimo R$ 1.518,00; teto R$ 8.157,41",
     salarioMinimo: 1518.0,
     teto: 8157.41,
-    aliquotaContribuinteIndividual: 0.2,
-    aliquotaPlanoSimplificado: 0.11,
     aliquotaProLabore: 0.11,
     ativa: true,
     origem: "seed",
@@ -210,8 +206,6 @@ export const SEED_INSS: InssTable[] = [
     descricao: "INSS 2026 — salário mínimo R$ 1.621,00; teto R$ 8.475,55 (confira a Portaria MPS/MF)",
     salarioMinimo: 1621.0,
     teto: 8475.55,
-    aliquotaContribuinteIndividual: 0.2,
-    aliquotaPlanoSimplificado: 0.11,
     aliquotaProLabore: 0.11,
     ativa: true,
     origem: "seed",

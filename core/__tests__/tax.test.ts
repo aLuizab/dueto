@@ -1,10 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { calcularIrpfMensal, impostoPelaTabela } from "../tax/irpf";
-import { inssContribuinteIndividual, inssProLabore } from "../tax/inss";
+import { inssProLabore } from "../tax/inss";
 import { SEED_INSS, SEED_IRPF, SEED_SIMPLES_ANEXOS, SEED_SIMPLES_PARAMS, pickByVigencia, tabelaDesatualizada } from "../tax/tables";
 import { aliquotaEfetiva, calcularDas, calcularFatorR, calcularRbt12, faixaPorRbt12, proLaboreMinimoFatorR, type SerieFolha, type SerieReceitas } from "../tax/simples";
 import { calcularProLabore } from "../tax/prolabore";
-import { calcularCarneLeao } from "../tax/carneLeao";
 import { calcularMei, calcularPresumidoMensal } from "../tax/outrosRegimes";
 import { limiteIsencaoLucros, retencaoDividendos } from "../tax/dividendos";
 import { SEED_DIVIDENDOS, SEED_MEI, SEED_PRESUMIDO } from "../tax/tables";
@@ -67,16 +66,6 @@ describe("INSS", () => {
     const r = inssProLabore(20000, inss2026);
     expect(r.inss).toBe(932.31); // 8475,55 × 11%
     expect(r.atingiuTeto).toBe(true);
-  });
-  it("contribuinte individual plano normal 20% entre mínimo e teto", () => {
-    expect(inssContribuinteIndividual({ plano: "normal20", baseDesejada: 3000 }, inss2026).contribuicao).toBe(600);
-    expect(inssContribuinteIndividual({ plano: "normal20", baseDesejada: 100 }, inss2026).baseContribuicao).toBe(1621);
-    expect(inssContribuinteIndividual({ plano: "normal20", baseDesejada: 99999 }, inss2026).baseContribuicao).toBe(8475.55);
-  });
-  it("plano simplificado 11% só sobre o mínimo", () => {
-    const r = inssContribuinteIndividual({ plano: "simplificado11", baseDesejada: 5000 }, inss2026);
-    expect(r.contribuicao).toBe(178.31);
-    expect(r.codigoGps).toBe("1163");
   });
 });
 
@@ -273,38 +262,6 @@ describe("pró-labore", () => {
     expect(r.inss).toBe(178.31);
     expect(r.irrf).toBe(0);
     expect(r.liquido).toBe(1442.69);
-  });
-});
-
-describe("carnê-leão", () => {
-  const tabela = () => irpf2025;
-  it("base = receitas − livro-caixa − INSS; transporta excedente", () => {
-    const r = calcularCarneLeao(
-      [
-        { competencia: "2025-06", receitasPF: 1000, despesasLivroCaixa: 1500, inssPago: 0 },
-        { competencia: "2025-07", receitasPF: 6000, despesasLivroCaixa: 500, inssPago: 303.6 },
-      ],
-      tabela,
-      { aplicarRedutor: false },
-    );
-    expect(r[0].despesasUtilizadas).toBe(1000);
-    expect(r[0].excedenteTransportado).toBe(500);
-    expect(r[0].imposto).toBe(0);
-    expect(r[1].despesasUtilizadas).toBe(1000); // 500 + 500 transportado
-    // base = 6000 − 1000 − 303,6 = 4696,40 → 27,5% − 908,73 = 382,78
-    expect(r[1].baseCalculo).toBe(4696.4);
-    expect(r[1].imposto).toBe(382.78);
-    expect(r[1].darfVencimento).toBe("2025-08-29");
-  });
-  it("excedente não passa de ano", () => {
-    const r = calcularCarneLeao(
-      [
-        { competencia: "2025-12", receitasPF: 0, despesasLivroCaixa: 900, inssPago: 0 },
-        { competencia: "2026-01", receitasPF: 3000, despesasLivroCaixa: 0, inssPago: 0 },
-      ],
-      tabela,
-    );
-    expect(r[1].despesasUtilizadas).toBe(0);
   });
 });
 

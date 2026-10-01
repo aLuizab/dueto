@@ -10,7 +10,7 @@ import { projetarCaixa } from "@core/dre";
 import { limiteIsencaoLucros, retencaoDividendos } from "@core/tax/dividendos";
 import { calcularRbt12 } from "@core/tax/simples";
 import { toCsv } from "@core/importers";
-import { Alert, Button, Card, Dialog, Disclaimer, Field, Input, Money, PageHeader, Pill, Select, Stat, Switch, TabPanel, Tabs } from "@/components/ui";
+import { Alert, Button, Card, Dialog, Disclaimer, Field, InfoTip, Input, Money, PageHeader, Pill, Select, Stat, Switch, TabPanel, Tabs } from "@/components/ui";
 import { useAvisos } from "@/components/AvisosFlutuantes";
 import { Impostos } from "@/pages/pj/Impostos";
 import { Balanco } from "@/pages/pj/Balanco";
@@ -102,7 +102,7 @@ function Receitas({ rows, onEdit }: { rows: Transaction[]; onEdit: (t: Transacti
       <Card title="Recebimentos do mês" actions={<span className="text-xs text-text-3">quinzenas, origem, cotação e IOF/spread por lançamento</span>}>
         <TransactionTable rows={rec} onEdit={onEdit} exportName={`pj-receitas-${mk}`} />
       </Card>
-      <Card title="Notas fiscais (NFS-e)" actions={<Button size="sm" variant="primary" onClick={() => setInv({ id: newId("inv"), entityId: pj.id, numero: "", data: todayISO(), clientId: null, tomador: "", moeda: pj.config.fatura?.moeda ?? "USD", valor: 0, cotacao: null, valorBrl: 0, tipo: pj.config.fatura?.exportacao ? "exportacao" : "nacional", status: "pendente", codigoServico: pj.config.issCodigoServico ?? null, municipio: pj.municipio ?? null, transactionIds: [] })}><Plus size={14} /> Nota</Button>}>
+      <Card title="Notas fiscais (NFS-e)" info={pj.config.fatura?.exportacao ? "Exportação de serviços: ISS não incide (LC 116, art. 2º, I) desde que o resultado se verifique no exterior; a Prefeitura de São Paulo exige comprovação (contrato, invoice, câmbio). PIS/COFINS/ISS saem da partilha do DAS." : undefined} actions={<Button size="sm" variant="primary" onClick={() => setInv({ id: newId("inv"), entityId: pj.id, numero: "", data: todayISO(), clientId: null, tomador: "", moeda: pj.config.fatura?.moeda ?? "USD", valor: 0, cotacao: null, valorBrl: 0, tipo: pj.config.fatura?.exportacao ? "exportacao" : "nacional", status: "pendente", codigoServico: pj.config.issCodigoServico ?? null, municipio: pj.municipio ?? null, transactionIds: [] })}><Plus size={14} /> Nota</Button>}>
         <div className="table-wrap">
           <table className="data"><thead><tr><th>Nº</th><th>Data</th><th>Tomador</th><th>Tipo</th><th className="r">Valor</th><th className="r">BRL</th><th>Status</th><th>Recebimento</th><th></th></tr></thead>
             <tbody>
@@ -116,7 +116,6 @@ function Receitas({ rows, onEdit }: { rows: Transaction[]; onEdit: (t: Transacti
               {invoices.length === 0 && <tr><td colSpan={9} className="text-center text-text-3 py-6">Cadastre as notas emitidas e concilie com os recebimentos. Município padrão: {pj.municipio ?? "—"}.</td></tr>}
             </tbody></table>
         </div>
-        {pj.config.fatura?.exportacao && <p className="text-xs text-text-3 mt-2">Exportação de serviços: ISS não incide (LC 116, art. 2º, I) desde que o resultado se verifique no exterior; a Prefeitura de São Paulo exige comprovação (contrato, invoice, câmbio). PIS/COFINS/ISS saem da partilha do DAS.</p>}
       </Card>
       {inv && <InvoiceForm invoice={inv} onClose={() => setInv(null)} />}
     </div>
@@ -189,7 +188,7 @@ function ProLabore() {
   return (
     <div className="flex flex-col gap-4">
       <div className="grid lg:grid-cols-[360px_1fr] gap-4">
-        <Card title={`Pró-labore de ${fmtMonth(mk, "long")}`}>
+        <Card title={`Pró-labore de ${fmtMonth(mk, "long")}`} info={<>Salvar gera: despesa "pró-labore líquido", despesa "DARF" (dia 20 do mês seguinte) e a receita espelhada de {dono?.nome ?? "sócio"} no módulo Pessoal. No Anexo III a CPP patronal está dentro do DAS.</>}>
           <div className="flex flex-col gap-3">
             <Field label="Política"><Select value={modo} onChange={(e) => s.upsertEntity({ ...pj, config: { ...pj.config, proLabore: { ...(pj.config.proLabore ?? {}), modo: e.target.value as "fixo" } } })}><option value="minimoFatorR">Mínimo para Fator R ≥ 28% (sugerido)</option><option value="percentual">% da receita do mês</option><option value="fixo">Valor fixo</option></Select></Field>
             {modo === "percentual" && <Field label="% da receita"><Input className="mono" value={pj.config.proLabore?.percentual ?? ""} onChange={(e) => s.upsertEntity({ ...pj, config: { ...pj.config, proLabore: { modo, percentual: Number(e.target.value.replace(",", ".")) } } })} placeholder="0,28" /></Field>}
@@ -203,7 +202,6 @@ function ProLabore() {
               <dt className="text-text-3">DARF (INSS + IRRF)</dt><dd className="num text-right">{fmtMoney(calc.darf)} <span className="text-xs text-text-3">até {fmtDate(calc.darfVencimento)}</span></dd>
             </dl>
             <Button variant="primary" onClick={salvar} disabled={calc.bruto <= 0}>{salvo ? "Atualizar pró-labore e lançamentos" : "Salvar e gerar lançamentos"}</Button>
-            <p className="text-xs text-text-3">Gera: despesa "pró-labore líquido", despesa "DARF" (dia 20 do mês seguinte) e a receita espelhada de {dono?.nome ?? "sócio"} no módulo Casa. No Anexo III a CPP patronal está dentro do DAS.</p>
           </div>
         </Card>
         <Card title="Memória de cálculo"><ol className="text-xs font-mono text-text-2 flex flex-col gap-1 list-decimal pl-4">{calc.memoria.map((m, i) => <li key={i}>{m}</li>)}</ol></Card>
@@ -237,7 +235,6 @@ function Lucros() {
   const distribuivel = round2(dre.lucroLiquido - dre.lucrosDistribuidos - reserva);
   useAvisos([
     ...(ret.retencao ? [{ tone: "warn" as const, msg: `Distribuição de ${fmtMoney(doMes)} neste mês excede ${fmtMoney(tt.dividendos.limiteMensalIsento ?? 0)}: retenção estimada de ${fmtMoney(ret.retencao)} na fonte.` }] : []),
-    ...(tt.semVigenciaAtiva.length ? [{ tone: "warn" as const, msg: `Sem vigência ativa para ${tt.semVigenciaAtiva.join(", ")}. Usando a tabela padrão do Dueto.`, to: "/config#fiscal" }] : []),
   ]);
   function registrar() {
     const v = Number(valor.replace(",", "."));
@@ -254,15 +251,18 @@ function Lucros() {
         <Stat label={`Lucro líquido acumulado ${ano}`} value={dre.lucroLiquido} tone={dre.lucroLiquido >= 0 ? "good" : "bad"} />
         <Stat label="Já distribuído no ano" value={dre.lucrosDistribuidos} />
         <Stat label="Reserva de caixa no ano" value={reserva} />
-        <Stat label="Lucro distribuível (estimado)" value={distribuivel} tone="accent" sub="resultado − distribuído − reservas" />
+        <Stat label="Lucro distribuível (estimado)" value={distribuivel} tone="accent" sub={<span className="flex items-center gap-1">isento até {fmtMoney(limite.limiteIsento)} no ano <InfoTip label="Sobre a isenção de lucros">
+          <p>Limite de isenção ({limite.metodo === "escrituracao" ? "com escrituração contábil: todo o lucro apurado" : "sem escrituração: presunção de 32% − IRPJ do DAS"}): <b className="num">{fmtMoney(limite.limiteIsento)}</b> no ano. Acima disso, a parcela é tributável na pessoa física.</p>
+          {tt.dividendos.limiteMensalIsento != null && <p className="mt-1">Desde {fmtDate(tt.dividendos.vigenciaInicio)}, distribuições acima de {fmtMoney(tt.dividendos.limiteMensalIsento)} por mês ao mesmo sócio têm retenção de {fmtPct(tt.dividendos.aliquotaAcimaLimite)} na fonte.</p>}
+          <p className="mt-1">Distribuível = resultado − já distribuído − reservas. Para prever retiradas com folga de caixa, use a aba Balanço.</p>
+        </InfoTip></span>} />
       </div>
-      <p className="text-sm text-text-2">Limite de isenção ({limite.metodo === "escrituracao" ? "com escrituração contábil" : "sem escrituração: presunção 32% − IRPJ do DAS"}): <b className="num">{fmtMoney(limite.limiteIsento)}</b> no ano. Acima disso, a parcela é tributável na pessoa física.{tt.dividendos.limiteMensalIsento != null && <> Desde {fmtDate(tt.dividendos.vigenciaInicio)}, distribuições acima de {fmtMoney(tt.dividendos.limiteMensalIsento)} por mês ao mesmo sócio têm retenção de {fmtPct(tt.dividendos.aliquotaAcimaLimite)}.</>} Para prever retiradas com folga de caixa, use a aba <b>Balanço</b>.</p>
       <Card title="Registrar retirada de lucros">
         <div className="flex flex-wrap gap-2 items-end">
           <Field label="Valor"><Input className="mono w-40" value={valor} onChange={(e) => setValor(e.target.value)} /></Field>
           <Field label="Data"><Input type="date" value={data} onChange={(e) => setData(e.target.value)} /></Field>
           <Button variant="primary" onClick={registrar} disabled={!Number(valor.replace(",", "."))}>Registrar</Button>
-          <span className="text-xs text-text-3">vira receita de {dono?.nome ?? "sócio"} no módulo Casa</span>
+          <InfoTip>A retirada vira receita de {dono?.nome ?? "sócio"} no módulo Pessoal.</InfoTip>
         </div>
       </Card>
       <div className="table-wrap"><table className="data"><thead><tr><th>Data</th><th>Descrição</th><th className="r">Valor</th><th></th></tr></thead><tbody>
@@ -296,12 +296,6 @@ function Dre() {
     zip.file(`notas-${ano}.csv`, "﻿" + toCsv([["Número", "Data", "Tomador", "Tipo", "Moeda", "Valor", "Cotação", "Valor BRL", "Status"], ...s.invoices.filter((i) => i.entityId === pj.id && i.data.startsWith(ano)).map((i) => [i.numero, i.data, i.tomador, i.tipo, i.moeda, i.valor, i.cotacao ?? "", i.valorBrl, i.status])]));
     const dasDarf = monthRange(`${ano}-01`, `${ano}-12`).map((m) => { const i = impostoDoMes(s, pj, m); const p = s.payrolls.find((x) => x.entityId === pj.id && x.competencia === m); return [m, i.valorTributo, i.das?.aliquotaEfetiva ?? "", i.das?.anexo ?? i.regime ?? "", i.fatorR?.fatorR ?? "", p?.bruto ?? "", p?.inss ?? "", p?.irrf ?? "", p?.darfValor ?? ""] as (string | number | null)[]; });
     zip.file(`das-darf-${ano}.csv`, "﻿" + toCsv([["Mês", "DAS estimado", "Alíquota efetiva", "Anexo/regime", "Fator R", "Pró-labore bruto", "INSS", "IRRF", "DARF"], ...dasDarf]));
-    const aut = s.entities.find((e) => e.tipo === "AUTONOMO_PF");
-    if (aut) {
-      const cats = new Map(s.categories.map((c) => [c.id, c]));
-      const lc = s.transactions.filter((t) => t.entityId === aut.id && t.competencia.startsWith(ano)).map((t) => [t.competencia, t.pagamento ?? t.vencimento ?? "", t.kind, t.descricao, cats.get(t.categoryId ?? "")?.nome ?? "", cats.get(t.categoryId ?? "")?.dedutivelLivroCaixa ? "dedutível" : "", t.valorBrl]);
-      zip.file(`livro-caixa-${ano}.csv`, "﻿" + toCsv([["Competência", "Data", "Tipo", "Histórico", "Categoria", "Livro-caixa", "Valor"], ...lc]));
-    }
     zip.file("LEIA-ME.txt", `Pacote gerado pelo Dueto em ${new Date().toLocaleString("pt-BR")}. Valores de impostos são estimativas; confira antes de recolher.`);
     const bytes = await zip.generateAsync({ type: "uint8array" });
     await downloadBytes(`dueto-pacote-contador-${ano}.zip`, bytes, "application/zip");

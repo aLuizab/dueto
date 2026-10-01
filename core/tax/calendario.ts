@@ -1,5 +1,5 @@
 /**
- * Calendário de obrigações (PJ, autônomo PF) gerado por mês.
+ * Calendário de obrigações da PJ gerado por mês.
  */
 import { addMonths, dateInMonth, lastBusinessDayOfMonth, nextBusinessDayOnOrAfter, splitMonthKey } from "../dates";
 import type { MonthKey, RegimeTributario } from "../domain/types";
@@ -52,16 +52,5 @@ export function gerarObrigacoesPJ(opts: {
   for (const p of opts.parcelamentos ?? []) {
     if (p.parcela <= p.total) push({ id: `parc-${p.nome}-${opts.competencia}`, titulo: `${p.nome} (${p.parcela}/${p.total})`, descricao: "Parcelamento em andamento.", vencimento: dateInMonth(opts.competencia, p.dia), tipo: "pagamento", valorPrevisto: p.valor });
   }
-  return out;
-}
-
-export function gerarObrigacoesAutonomo(opts: { entityId: string; competencia: MonthKey; carneLeaoPrevisto?: number | null; inssPrevisto?: number | null; conselhoAnual?: { valor: number; mes: number } | null }): Obrigacao[] {
-  const next = addMonths(opts.competencia, 1);
-  const { month, year } = splitMonthKey(opts.competencia);
-  const out: Obrigacao[] = [];
-  out.push({ id: `cl-${opts.competencia}`, entityId: opts.entityId, competencia: opts.competencia, titulo: "DARF carnê-leão (0190)", descricao: "IR mensal sobre receitas de pessoas físicas.", vencimento: lastBusinessDayOfMonth(next), tipo: "pagamento", valorPrevisto: opts.carneLeaoPrevisto ?? null, concluida: false });
-  out.push({ id: `gps-${opts.competencia}`, entityId: opts.entityId, competencia: opts.competencia, titulo: "GPS contribuinte individual", descricao: "INSS do autônomo (cód. 1007 ou 1163).", vencimento: nextBusinessDayOnOrAfter(dateInMonth(next, 15)), tipo: "pagamento", valorPrevisto: opts.inssPrevisto ?? null, concluida: false });
-  if (month === 4) out.push({ id: `dirpf-${year}`, entityId: opts.entityId, competencia: opts.competencia, titulo: "Declaração IRPF", descricao: "Entrega da DIRPF (ano anterior).", vencimento: `${year}-05-31`, tipo: "declaracao", concluida: false });
-  if (opts.conselhoAnual && opts.conselhoAnual.mes === month) out.push({ id: `conselho-${year}`, entityId: opts.entityId, competencia: opts.competencia, titulo: "Anuidade do conselho profissional", descricao: "CRN/CRP/CREA etc.", vencimento: dateInMonth(opts.competencia, 31), tipo: "pagamento", valorPrevisto: opts.conselhoAnual.valor, concluida: false });
   return out;
 }

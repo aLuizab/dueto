@@ -46,7 +46,8 @@ export function TransactionForm({ open, onOpenChange, entityId, initial, kindDef
   const [parcelas, setParcelas] = useState(initial?.parcelaTotal ? String(initial.parcelaTotal) : "");
   const [parcelaAtual, setParcelaAtual] = useState(initial?.parcelaAtual ? String(initial.parcelaAtual) : "1");
   const [exportacao, setExportacao] = useState(initial?.exportacao ?? (ent?.tipo === "PJ" && ent.config.fatura?.exportacao !== false));
-  const [recorrente, setRecorrente] = useState(false);
+  const recAtual = initial?.recorrenciaId ? s.recurrences.find((r) => r.id === initial.recorrenciaId) : undefined;
+  const [recorrente, setRecorrente] = useState(!!recAtual?.ativa);
   const [erro, setErro] = useState<string | null>(null);
   const [ptaxMsg, setPtaxMsg] = useState<string | null>(null);
 
@@ -56,7 +57,7 @@ export function TransactionForm({ open, onOpenChange, entityId, initial, kindDef
     setMoeda(initial?.moeda ?? "BRL"); setCotacao(initial?.cotacao ? String(initial.cotacao) : ""); setCompetencia(initial?.competencia ?? s.competencia);
     setVencimento(initial?.vencimento ?? ""); setPagamento(initial?.pagamento ?? ""); setStatus(initial?.status ?? "pendente"); setCategoryId(initial?.categoryId ?? "");
     setAccountId(initial?.accountId ?? ""); setPagoPor(initial?.pagoPor ?? ""); setParcelas(initial?.parcelaTotal ? String(initial.parcelaTotal) : ""); setParcelaAtual(initial?.parcelaAtual ? String(initial.parcelaAtual) : "1");
-    setExportacao(initial?.exportacao ?? (ent?.tipo === "PJ" && ent.config.fatura?.exportacao !== false)); setRecorrente(false); setErro(null); setPtaxMsg(null);
+    setExportacao(initial?.exportacao ?? (ent?.tipo === "PJ" && ent.config.fatura?.exportacao !== false)); setRecorrente(!!recAtual?.ativa); setErro(null); setPtaxMsg(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -95,8 +96,16 @@ export function TransactionForm({ open, onOpenChange, entityId, initial, kindDef
       categoryId: categoryId || null, accountId: accountId || null, pagoPor: pagoPor || null,
       parcelaAtual: total > 1 ? atual : null, parcelaTotal: total > 1 ? total : null, grupoParcelamentoId: grupo,
       exportacao: kind === "receita" && ent?.tipo === "PJ" ? exportacao : false,
-      tags: initial?.tags ?? [], meta: initial?.meta ?? {}, recorrenciaId: initial?.recorrenciaId ?? null, clientId: initial?.clientId ?? null, patientId: initial?.patientId ?? null, invoiceId: initial?.invoiceId ?? null, origemId: initial?.origemId ?? null, custoCambioBrl: initial?.custoCambioBrl ?? null, anexo: initial?.anexo ?? null,
+      tags: initial?.tags ?? [], meta: initial?.meta ?? {}, recorrenciaId: initial?.recorrenciaId ?? null, clientId: initial?.clientId ?? null, invoiceId: initial?.invoiceId ?? null, origemId: initial?.origemId ?? null, custoCambioBrl: initial?.custoCambioBrl ?? null, anexo: initial?.anexo ?? null,
     };
+    if (recorrente && !recAtual?.ativa) {
+      // cria a recorrência e já vincula este lançamento, para "Gerar recorrências" não duplicar o mês atual
+      const recId = recAtual?.id ?? newId("rec");
+      s.upsertRecurrence({ id: recId, entityId, descricao: descricao.trim(), categoryId: categoryId || null, accountId: accountId || null, kind, periodicidade: "mensal", diaVencimento: vencimento ? Number(vencimento.slice(8, 10)) : 10, mesVencimento: null, valorPadrao: valorEval.value, moeda, ativa: true, inicio: competencia, fim: null });
+      base.recorrenciaId = recId;
+    } else if (!recorrente && recAtual?.ativa) {
+      s.upsertRecurrence({ ...recAtual, ativa: false });
+    }
     if (ent?.tipo === "PJ" && kind === "receita") base.categoryId = base.categoryId || (base.exportacao ? "pj-rec-exportacao" : "pj-rec-nacional");
     s.upsertTransaction(base, editing);
     if (!editing && total > 1 && atual < total) {
@@ -105,9 +114,6 @@ export function TransactionForm({ open, onOpenChange, entityId, initial, kindDef
         ...base, id: newId("tx"), competencia: f.competencia, vencimento: f.vencimento, pagamento: null, status: "pendente" as TxStatus, parcelaAtual: f.parcelaAtual, valorBrl: toBrl(f.valor, moeda, Number(cotacao) || null),
       }));
       s.upsertTransactions(futuras);
-    }
-    if (!editing && recorrente) {
-      s.upsertRecurrence({ id: newId("rec"), entityId, descricao: descricao.trim(), categoryId: base.categoryId, accountId: base.accountId, kind, periodicidade: "mensal", diaVencimento: vencimento ? Number(vencimento.slice(8, 10)) : 10, mesVencimento: null, valorPadrao: valorEval.value, moeda, ativa: true, inicio: competencia, fim: null });
     }
     onOpenChange(false);
   }
@@ -157,7 +163,7 @@ export function TransactionForm({ open, onOpenChange, entityId, initial, kindDef
         {Number(parcelas) > 1 && <Field label="Parcela atual"><Input type="number" min={1} max={Number(parcelas)} value={parcelaAtual} onChange={(e) => setParcelaAtual(e.target.value)} /></Field>}
         <div className="sm:col-span-2 flex flex-wrap gap-4 pt-1">
           {ent?.tipo === "PJ" && kind === "receita" && <Switch checked={exportacao} onCheckedChange={setExportacao} label="Exportação de serviço" />}
-          {!editing && <Switch checked={recorrente} onCheckedChange={setRecorrente} label="Repetir todo mês (recorrência)" />}
+          <Switch checked={recorrente} onCheckedChange={setRecorrente} label="Repetir todo mês (recorrência)" />
         </div>
         {erro && <p className="sm:col-span-2 text-sm text-bad">{erro}</p>}
         {ent?.tipo === "CASAL" || ent?.tipo === "PESSOA" ? <p className="sm:col-span-2 text-xs text-text-3">Mês de competência: {monthKeyOf(vencimento || `${competencia}-01`) === competencia ? "igual ao vencimento" : "diferente do vencimento (ok para faturas de cartão)"}.</p> : null}

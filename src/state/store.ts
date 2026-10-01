@@ -3,7 +3,7 @@
  * (50 mil lançamentos cabem com folga) e cada mutação grava no banco e agenda o save do arquivo.
  */
 import { create } from "zustand";
-import type { Account, Budget, Category, Client, Contribution, Entity, Goal, Investment, InvestmentSnapshot, Invoice, Patient, Payroll, Recurrence, Transaction } from "@core/domain/types";
+import type { Account, Budget, Category, Client, Contribution, Entity, Goal, Investment, InvestmentSnapshot, Invoice, Payroll, Recurrence, Transaction } from "@core/domain/types";
 import { SEED_CATEGORIES } from "@core/seed/categories";
 import { SEED_RULES, type CategRule, learnRule } from "@core/categorize";
 import { SEED_TAX_TABLES, type TaxTables, type IrpfTable, type InssTable, type SimplesAnexoTable, type SimplesParams, type MeiParams, type PresumidoParams, type IssMunicipio, type DividendosParams } from "@core/tax/tables";
@@ -31,7 +31,6 @@ export interface AppState {
   recurrences: Recurrence[];
   invoices: Invoice[];
   clients: Client[];
-  patients: Patient[];
   investments: Investment[];
   snapshots: InvestmentSnapshot[];
   contributions: Contribution[];
@@ -48,6 +47,8 @@ export interface AppState {
   theme: Theme;
   busca: boolean;
   avisos: Aviso[];
+  notificacao: { id: number; msg: string } | null;
+  notificar(msg: string | null): void;
   setAvisos(a: Aviso[]): void;
   setBackupAuto(v: boolean): Promise<void>;
 
@@ -73,8 +74,6 @@ export interface AppState {
   deleteInvoice(id: string): void;
   upsertClient(c: Client): void;
   deleteClient(id: string): void;
-  upsertPatient(p: Patient): void;
-  deletePatient(id: string): void;
   upsertInvestment(i: Investment): void;
   deleteInvestment(id: string): void;
   upsertSnapshot(s: InvestmentSnapshot): void;
@@ -124,7 +123,7 @@ export const useStore = create<AppState>((set, get) => {
     const db = dbx();
     set({
       entities: t.entities.all(), accounts: t.accounts.all(), categories: t.categories.all(), transactions: t.transactions.all(), recurrences: t.recurrences.all(),
-      invoices: t.invoices.all(), clients: t.clients.all(), patients: t.patients.all(), investments: t.investments.all(), snapshots: t.snapshots.all(), contributions: t.contributions.all(),
+      invoices: t.invoices.all(), clients: t.clients.all(), investments: t.investments.all(), snapshots: t.snapshots.all(), contributions: t.contributions.all(),
       payrolls: t.payrolls.all(), goals: t.goals.all(), budgets: t.budgets.all(), rules: t.rules.all(), taxTables: assembleTaxTables(loadTaxTables(db)), settings: loadSettings(db), obligationsDone: loadObligationsDone(db),
     });
   };
@@ -142,9 +141,10 @@ export const useStore = create<AppState>((set, get) => {
 
   return {
     ready: false, erro: null, db: null, tables: null, ultimoSave: null, info: null,
-    entities: [], accounts: [], categories: [], transactions: [], recurrences: [], invoices: [], clients: [], patients: [], investments: [], snapshots: [], contributions: [], payrolls: [], goals: [], budgets: [], rules: [],
+    entities: [], accounts: [], categories: [], transactions: [], recurrences: [], invoices: [], clients: [], investments: [], snapshots: [], contributions: [], payrolls: [], goals: [], budgets: [], rules: [],
     taxTables: SEED_TAX_TABLES, settings: {}, obligationsDone: new Set(),
-    competencia: currentMonthKey(), theme: "system", busca: false, avisos: [],
+    competencia: currentMonthKey(), theme: "system", busca: false, avisos: [], notificacao: null,
+    notificar(msg) { set({ notificacao: msg ? { id: Date.now(), msg } : null }); },
     setAvisos(a) { const cur = get().avisos; if (JSON.stringify(cur) !== JSON.stringify(a)) set({ avisos: a }); },
     async setBackupAuto(v) { get().setSetting("backup.auto", v); if (window.dueto) await window.dueto.backup.setAuto(v); },
 
@@ -161,9 +161,6 @@ export const useStore = create<AppState>((set, get) => {
           const atuais = tables.categories.all();
           const ids = new Set(atuais.map((c) => c.id));
           tables.categories.upsertMany(SEED_CATEGORIES.filter((c) => !ids.has(c.id)));
-          // categorias do autônomo ficaram genéricas: atualiza o nome das que ainda têm o nome antigo da semente
-          const antigos: Record<string, string> = { "pf-rec-consulta": "Consultas", "pf-rec-pacote": "Pacotes / acompanhamento", "pf-aluguel-sala": "Aluguel de sala", "pf-conselho": "Conselho profissional" };
-          for (const c of atuais) { const seed = SEED_CATEGORIES.find((x) => x.id === c.id); if (seed && antigos[c.id] === c.nome && seed.nome !== c.nome) tables.categories.upsert({ ...c, nome: seed.nome }); }
         }
         if (tables.rules.all().length === 0) tables.rules.upsertMany(SEED_RULES);
         if (loadTaxTables(db).length === 0) seedTaxTables(db);
@@ -214,8 +211,6 @@ export const useStore = create<AppState>((set, get) => {
     deleteInvoice: del("invoices", "invoices"),
     upsertClient: ups<Client>("clients", "clients"),
     deleteClient: del("clients", "clients"),
-    upsertPatient: ups<Patient>("patients", "patients"),
-    deletePatient: del("patients", "patients"),
     upsertInvestment: ups<Investment>("investments", "investments"),
     deleteInvestment: del("investments", "investments"),
     upsertSnapshot: ups<InvestmentSnapshot>("snapshots", "snapshots"),
@@ -251,7 +246,7 @@ export const useStore = create<AppState>((set, get) => {
     resetAll() {
       const db = dbx();
       db.transaction(() => {
-        for (const tname of ["entities", "accounts", "categories", "transactions", "recurrences", "invoices", "clients", "patients", "investments", "investment_snapshots", "contributions", "tax_tables", "payroll", "goals", "budgets", "categ_rules", "obligations_done", "settings"]) db.exec(`DELETE FROM ${tname}`);
+        for (const tname of ["entities", "accounts", "categories", "transactions", "recurrences", "invoices", "clients", "investments", "investment_snapshots", "contributions", "tax_tables", "payroll", "goals", "budgets", "categ_rules", "obligations_done", "settings"]) db.exec(`DELETE FROM ${tname}`);
       });
       tbl().categories.upsertMany(SEED_CATEGORIES);
       tbl().rules.upsertMany(SEED_RULES);
@@ -266,12 +261,11 @@ export const useStore = create<AppState>((set, get) => {
 export const selPessoas = (s: AppState) => s.entities.filter((e) => e.tipo === "PESSOA" && e.ativa);
 export const selCasal = (s: AppState) => s.entities.find((e) => e.tipo === "CASAL");
 export const selPJ = (s: AppState) => s.entities.find((e) => e.tipo === "PJ" && e.ativa);
-export const selAutonomo = (s: AppState) => s.entities.find((e) => e.tipo === "AUTONOMO_PF" && e.ativa);
 
 export function novoTx(base: Partial<Transaction> & Pick<Transaction, "entityId" | "kind" | "competencia" | "descricao" | "valor">): Transaction {
   return {
     id: newId("tx"), accountId: null, categoryId: null, vencimento: null, pagamento: null, moeda: "BRL", cotacao: null, valorBrl: base.valor, status: "pendente",
-    parcelaAtual: null, parcelaTotal: null, grupoParcelamentoId: null, recorrenciaId: null, tags: [], anexo: null, valorExpressao: null, pagoPor: null, clientId: null, patientId: null, exportacao: false, invoiceId: null, origemId: null, custoCambioBrl: null, meta: {},
+    parcelaAtual: null, parcelaTotal: null, grupoParcelamentoId: null, recorrenciaId: null, tags: [], anexo: null, valorExpressao: null, pagoPor: null, clientId: null, exportacao: false, invoiceId: null, origemId: null, custoCambioBrl: null, meta: {},
     ...base,
   };
 }

@@ -12,14 +12,13 @@ Registro das escolhas feitas sem consultar o autor do pedido, como solicitado.
 
 ## Domínio
 
-- Toda entidade `AUTONOMO_PF` e `PJ` tem uma **pessoa dona** (`config.donoPessoaId`); pró-labore líquido e retiradas de lucro viram receita espelhada dessa pessoa no módulo Casa. Sem dono configurado, usa-se a primeira pessoa.
+- Toda entidade `PJ` tem uma **pessoa dona** (`config.donoPessoaId`); pró-labore líquido e retiradas de lucro viram receita espelhada dessa pessoa no módulo Casa. Sem dono configurado, usa-se a primeira pessoa.
 - "Restante do mês anterior" = saldo positivo do mês anterior (opção **zerar** no módulo Casa). Se o mês anterior não tem lançamentos, é zero.
 - Despesa **fixa** é atributo da categoria (não do lançamento); a planilha só tinha "DESPESAS FIXAS".
 
 ## Fiscal (ver também `memoria-de-calculo.md`)
 
-- **INSS do autônomo**: o plano simplificado (11%) incide **somente sobre o salário mínimo** (não sobre "valor entre mínimo e teto", como estava no pedido); o plano normal (20%) admite base entre mínimo e teto. Implementado assim por ser a regra legal.
-- **IRPF 2026**: tabela de mai/2025 + redutor da Lei 15.270/2025 (isenção total até R$ 5.000; parcial até R$ 7.350: `978,62 − 13,3145% × rendimento`, limitado ao imposto). O redutor é aplicado ao IRRF do pró-labore e, por padrão, ao carnê-leão (chave `aplicarRedutorCarneLeao`, desligável), porque a regra fala em rendimentos tributáveis mensais; confirme com o contador.
+- **IRPF 2026**: tabela de mai/2025 + redutor da Lei 15.270/2025 (isenção total até R$ 5.000; parcial até R$ 7.350: `978,62 − 13,3145% × rendimento`, limitado ao imposto). O redutor é aplicado ao IRRF do pró-labore; confirme com o contador.
 - **INSS 2026**: salário mínimo R$ 1.621,00 e teto R$ 8.475,55 (conferir a Portaria MPS/MF do ano).
 - **Simples Nacional**: Anexos III e V conforme LC 155/2016. A partilha oficial da 1ª faixa do Anexo III soma 99,90% (texto legal); o app aplica os percentuais como estão, como o PGDAS-D. Teto de ISS de 5% com redistribuição proporcional aos tributos federais. Exportação: PIS, COFINS e ISS excluídos da partilha sobre a receita de exportação.
 - **RBT12/Fator R em início de atividade**: proporcionalização (média × 12; 1º mês × 12) para receita e folha (Res. CGSN 140/2018, arts. 21 e 26).

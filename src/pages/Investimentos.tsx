@@ -29,7 +29,7 @@ export default function Investimentos() {
   const aportesMes = round2(evs.reduce((a, e) => a + e.aportes, 0));
   const serie = serieMensalPatrimonio(invs, s.snapshots, monthRange(addMonths(mk, -11), mk)).map((x) => ({ mes: x.mes, total: x.total, ...Object.fromEntries(pessoas.map((p) => [p.id, x.porDono[p.id] ?? 0])) }));
   const aloc = alocacaoPorTipo(evs).map((a) => ({ nome: TIPOS[a.tipo as Investment["tipo"]] ?? a.tipo, valor: a.valor }));
-  const aportesTx = s.transactions.filter((t) => (t.categoryId === "investimentos" || t.categoryId === "pf-investimento") && t.competencia === mk);
+  const aportesTx = s.transactions.filter((t) => t.categoryId === "investimentos" && t.competencia === mk);
   const nome = (id: string) => s.entities.find((e) => e.id === id)?.nome ?? "";
   const meta12 = Number(s.settings["inv.meta"] ?? 0);
 
@@ -57,7 +57,7 @@ export default function Investimentos() {
               <td><div className="flex gap-1 justify-end"><Button size="sm" onClick={() => setSnap(inv)}>Saldo</Button><Button size="sm" variant="ghost" onClick={() => setEdit(inv)}>Editar</Button><Button size="sm" variant="ghost" onClick={() => setDel(inv)}>Excluir</Button></div></td></tr>); })}
             {evs.length === 0 && <tr><td colSpan={10} className="text-center text-text-3 py-6">Cadastre produtos (previdência, CDB, cofrinho, conta remunerada, ações, FII, cripto, exterior) e registre o saldo a cada mês.</td></tr>}</tbody></table></div>
       </Card>
-      <Card title={`Aportes lançados em ${fmtMonth(mk)} (Casa e Autônomo)`}>
+      <Card title={`Aportes lançados em ${fmtMonth(mk)} (Pessoal)`}>
         <ul className="text-sm divide-y divide-border">{aportesTx.map((t) => { const ctb = s.contributions.find((c) => c.transactionId === t.id); return (
           <li key={t.id} className="flex items-center gap-3 py-1.5"><span className="flex-1">{t.descricao} <span className="text-text-3 text-xs">· {nome(t.entityId)}</span></span><span className="num">{fmtMoney(t.valorBrl)}</span>
             {ctb ? <span className="text-xs text-text-3">→ {invs.find((i) => i.id === ctb.investmentId)?.nome ?? "produto"}</span> : <Select className="w-48" value="" onChange={(e) => { if (e.target.value) s.upsertContribution({ id: newId("ctb"), investmentId: e.target.value, transactionId: t.id, data: t.pagamento ?? t.vencimento ?? `${t.competencia}-15`, valor: t.valorBrl }); }}><option value="">vincular a um produto…</option>{invs.map((i) => <option key={i.id} value={i.id}>{i.nome}</option>)}</Select>}</li>); })}

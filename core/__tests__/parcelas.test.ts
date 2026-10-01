@@ -41,7 +41,7 @@ describe("parseDescription", () => {
     expect(p.parcelaAtual).toBeNull();
     expect(p.contaHint).toBe("Porto");
   });
-  it("paciente com parcela", () => {
+  it("nome com parcela (com e sem espaço)", () => {
     expect(parseDescription("Cliente A (1/3)")).toMatchObject({ descricao: "Cliente A", parcelaAtual: 1, parcelaTotal: 3 });
     expect(parseDescription("ClienteB(3/4)")).toMatchObject({ descricao: "ClienteB", parcelaAtual: 3, parcelaTotal: 4 });
   });

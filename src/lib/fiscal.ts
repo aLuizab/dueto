@@ -1,13 +1,12 @@
 /**
- * Seletores que ligam o estado do app aos cálculos do core (Simples, Fator R, pró-labore, carnê-leão, DRE, obrigações).
+ * Seletores que ligam o estado do app aos cálculos do core (Simples, Fator R, pró-labore, DRE, obrigações).
  */
 import type { Entity, MonthKey, Transaction } from "@core/domain/types";
 import { addMonths, monthRange, previousMonths } from "@core/dates";
 import { refDate, SEED_TAX_TABLES } from "@core/tax/tables";
 import { calcularDre, type DreResult } from "@core/dre";
 import { round2 } from "@core/money";
-import { calcularCarneLeao, type CarneLeaoMesResult } from "@core/tax/carneLeao";
-import { gerarObrigacoesAutonomo, gerarObrigacoesPJ, type Obrigacao } from "@core/tax/calendario";
+import { gerarObrigacoesPJ, type Obrigacao } from "@core/tax/calendario";
 import { calcularMei, calcularPresumidoMensal } from "@core/tax/outrosRegimes";
 import { calcularProLabore, definirProLaboreBruto, type ProLaboreResult } from "@core/tax/prolabore";
 import { calcularDas, calcularFatorR, proLaboreMinimoFatorR, type DasResult, type FatorRResult, type SerieFolha, type SerieReceitas } from "@core/tax/simples";
@@ -119,18 +118,6 @@ export function dreDoPeriodo(s: Pick<AppState, "transactions" | "categories" | "
   return calcularDre({ transactions: s.transactions.filter((t) => t.entityId === pj.id), categories: s.categories, de, ate, irpjCsllNoDas: round2(irpjCsll) });
 }
 
-export function carneLeaoSerie(s: Pick<AppState, "transactions" | "categories" | "taxTables">, ent: Entity, ano: number): CarneLeaoMesResult[] {
-  const cats = new Map(s.categories.map((c) => [c.id, c]));
-  const meses = monthRange(`${ano}-01`, `${ano}-12`).map((mk) => {
-    const doMes = s.transactions.filter((t) => t.entityId === ent.id && t.competencia === mk);
-    const receitasPF = round2(doMes.filter((t) => t.kind === "receita" && t.status !== "pendente").reduce((a, t) => a + t.valorBrl, 0));
-    const livro = round2(doMes.filter((t) => t.kind === "despesa" && t.categoryId && cats.get(t.categoryId)?.dedutivelLivroCaixa && t.categoryId !== "pf-inss" && t.status !== "pendente").reduce((a, t) => a + t.valorBrl, 0));
-    const inss = round2(doMes.filter((t) => t.kind === "despesa" && t.categoryId === "pf-inss" && t.status !== "pendente").reduce((a, t) => a + t.valorBrl, 0));
-    return { competencia: mk, receitasPF, despesasLivroCaixa: livro, inssPago: inss, dependentes: 0 };
-  });
-  return calcularCarneLeao(meses, (mk) => tabelasPara(s.taxTables, mk).irpf, { aplicarRedutor: ent.config.aplicarRedutorCarneLeao !== false });
-}
-
 export function obrigacoesDoMes(s: Pick<AppState, "transactions" | "payrolls" | "taxTables" | "categories" | "recurrences" | "obligationsDone">, ents: Entity[], mk: MonthKey): Obrigacao[] {
   const out: Obrigacao[] = [];
   for (const e of ents) {
@@ -140,11 +127,6 @@ export function obrigacoesDoMes(s: Pick<AppState, "transactions" | "payrolls" | 
       const contab = s.recurrences.find((r) => r.entityId === e.id && r.ativa && r.categoryId === "pj-contabilidade");
       const inf = (tipo: string) => s.transactions.find((t) => t.entityId === e.id && t.meta?.imposto === tipo && t.meta?.impostoDe === mk)?.valorBrl;
       out.push(...gerarObrigacoesPJ({ entityId: e.id, competencia: mk, regime: e.regime ?? "SIMPLES_III", dasPrevisto: inf("das") ?? inf("tribfed") ?? imp.valorTributo, darfPrevisto: inf("darf") ?? pl.darf, tfeAnual: e.config.tfeAnual ?? null, mesTfe: e.config.mesTfe ?? 7, honorariosContabilidade: contab?.valorPadrao ?? null }));
-    }
-    if (e.tipo === "AUTONOMO_PF") {
-      const serie = carneLeaoSerie(s, e, Number(mk.slice(0, 4)));
-      const m = serie.find((x) => x.competencia === mk);
-      out.push(...gerarObrigacoesAutonomo({ entityId: e.id, competencia: mk, carneLeaoPrevisto: m?.imposto ?? null, inssPrevisto: e.config.inssValorMensal ?? null }));
     }
   }
   return out.map((o) => ({ ...o, concluida: s.obligationsDone.has(o.id) }));

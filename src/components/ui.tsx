@@ -5,7 +5,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
 import * as SwitchPrimitive from "@radix-ui/react-switch";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import { X } from "lucide-react";
+import { Info, X } from "lucide-react";
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { fmtMoney } from "@core/money";
@@ -48,12 +48,12 @@ export function Switch({ checked, onCheckedChange, label, id }: { checked: boole
 }
 
 // ---------------------------------------------------------------- Card
-export function Card({ className, title, actions, children, padded = true }: { className?: string; title?: React.ReactNode; actions?: React.ReactNode; children: React.ReactNode; padded?: boolean }) {
+export function Card({ className, title, info, actions, children, padded = true }: { className?: string; title?: React.ReactNode; info?: React.ReactNode; actions?: React.ReactNode; children: React.ReactNode; padded?: boolean }) {
   return (
     <section className={cn("card", className)}>
       {(title || actions) && (
         <header className="flex items-center justify-between gap-3 px-4 pt-3 pb-2">
-          {title && <h3 className="text-sm font-semibold text-text">{title}</h3>}
+          {title && <h3 className="text-sm font-semibold text-text flex items-center gap-1.5">{title}{info && <InfoTip>{info}</InfoTip>}</h3>}
           {actions && <div className="flex items-center gap-2">{actions}</div>}
         </header>
       )}
@@ -62,12 +62,12 @@ export function Card({ className, title, actions, children, padded = true }: { c
   );
 }
 
-export function Stat({ label, value, sub, tone, moeda = "BRL", className }: { label: string; value: number | string; sub?: React.ReactNode; tone?: "good" | "warn" | "bad" | "accent"; moeda?: "BRL" | "USD" | "EUR" | "pct" | "raw"; className?: string }) {
+export function Stat({ label, value, sub, tone, moeda = "BRL", className, info }: { label: string; value: number | string; sub?: React.ReactNode; tone?: "good" | "warn" | "bad" | "accent"; moeda?: "BRL" | "USD" | "EUR" | "pct" | "raw"; className?: string; info?: React.ReactNode }) {
   const v = typeof value === "number" ? (moeda === "pct" ? `${(value * 100).toFixed(2).replace(".", ",")}%` : moeda === "raw" ? String(value) : fmtMoney(value, moeda)) : value;
   const color = tone === "good" ? "text-good" : tone === "warn" ? "text-warn" : tone === "bad" ? "text-bad" : tone === "accent" ? "text-accent" : "text-text";
   return (
     <div className={cn("card px-4 py-3 flex flex-col gap-1 min-w-0", className)}>
-      <span className="label truncate">{label}</span>
+      <span className="label flex items-center gap-1 min-w-0"><span className="truncate">{label}</span>{info && <InfoTip>{info}</InfoTip>}</span>
       <span className={cn("num text-xl font-semibold tracking-tight truncate", color)}>{v}</span>
       {sub && <span className="text-xs text-text-3 truncate">{sub}</span>}
     </div>
@@ -171,6 +171,22 @@ export function Tip({ text, children }: { text: React.ReactNode; children: React
         <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
         <TooltipPrimitive.Portal>
           <TooltipPrimitive.Content sideOffset={6} className="z-50 max-w-xs rounded-md border border-border bg-surface px-2 py-1 text-xs text-text-2 shadow">{text}</TooltipPrimitive.Content>
+        </TooltipPrimitive.Portal>
+      </TooltipPrimitive.Root>
+    </TooltipPrimitive.Provider>
+  );
+}
+
+/** Ícone "ⓘ" com a explicação num tooltip: mantém a tela limpa sem perder a informação. */
+export function InfoTip({ children, label = "Mais informações" }: { children: React.ReactNode; label?: string }) {
+  return (
+    <TooltipPrimitive.Provider delayDuration={100}>
+      <TooltipPrimitive.Root>
+        <TooltipPrimitive.Trigger asChild>
+          <button type="button" aria-label={label} className="inline-flex shrink-0 items-center text-text-3 hover:text-accent focus-visible:text-accent rounded-full"><Info size={13} /></button>
+        </TooltipPrimitive.Trigger>
+        <TooltipPrimitive.Portal>
+          <TooltipPrimitive.Content sideOffset={6} collisionPadding={12} className="z-50 max-w-sm rounded-md border border-border bg-surface px-3 py-2 text-xs leading-relaxed text-text-2 shadow-lg normal-case tracking-normal font-normal">{children}</TooltipPrimitive.Content>
         </TooltipPrimitive.Portal>
       </TooltipPrimitive.Root>
     </TooltipPrimitive.Provider>

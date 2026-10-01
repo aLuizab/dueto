@@ -18,7 +18,6 @@ export function Impostos() {
   const pj = selPJ(s)!;
   const mk = s.competencia;
   const imp = impostoDoMes(s, pj, mk);
-  const tt = tabelasPara(s.taxTables, mk);
   const linhas = linhasImposto(s, pj, mk);
   const tot = totalImpostosMes(s, pj, mk);
   const [novo, setNovo] = useState(false);
@@ -26,7 +25,6 @@ export function Impostos() {
   const cfg = configImpostos(pj);
 
   useAvisos([
-    ...(tt.semVigenciaAtiva.length ? [{ tone: "warn" as const, msg: `Sem vigência ativa para ${tt.semVigenciaAtiva.join(", ")}. Usando a tabela padrão do Dueto.`, to: "/config#fiscal" }] : []),
     ...imp.alertas.map((a) => ({ tone: "warn" as const, msg: a })),
     ...(tot.informado === 0 && tot.estimado > 0 ? [{ tone: "info" as const, msg: `Nenhum imposto informado para ${fmtMonth(mk)}. Preencha os valores com o que vai recolher; a estimativa é só sugestão.` }] : []),
   ]);
@@ -50,8 +48,7 @@ export function Impostos() {
         {imp.fatorR && <Stat label="Fator R" value={imp.fatorR.fatorR} moeda="pct" tone={imp.fatorR.fatorR >= 0.28 ? "good" : "warn"} sub={imp.das ? `Anexo ${imp.das.anexo} · faixa ${imp.das.faixa}` : ""} />}
       </div>
 
-      <Card title={`Impostos de ${fmtMonth(mk, "long")}`} actions={<Button size="sm" onClick={() => setNovo(true)}><Plus size={14} /> Outro imposto</Button>}>
-        <p className="text-xs text-text-3 mb-3">Ligue só o que sua empresa recolhe. Digite o valor que vai pagar; "usar" copia a estimativa. Os valores ficam salvos e nunca são sobrescritos pelo cálculo.</p>
+      <Card title={`Impostos de ${fmtMonth(mk, "long")}`} info={"Ligue só o que sua empresa recolhe. Digite o valor que vai pagar; \"usar\" copia a estimativa. Os valores ficam salvos e nunca são sobrescritos pelo cálculo."} actions={<Button size="sm" onClick={() => setNovo(true)}><Plus size={14} /> Outro imposto</Button>}>
         <div className="flex flex-col divide-y divide-border">
           {linhas.map((l) => <LinhaImpostoRow key={l.tipo} linha={l} mk={mk} onToggle={(v) => setAtivo(l.tipo, v)} onRemover={l.custom ? () => removerCustom(l.custom!.id) : undefined} />)}
         </div>
@@ -169,7 +166,7 @@ function Detalhes() {
               <tr><td className="font-semibold">DAS</td><td colSpan={2}></td><td className="r num">{fmtMoney(das.receitaNacional)}</td><td className="r num">{fmtMoney(das.receitaExportacao)}</td><td className="r num font-semibold">{fmtMoney(das.das)}</td></tr></tbody></table></div>
         </Card>
       )}
-      <Card title="Memória de cálculo"><ol className="text-xs font-mono text-text-2 flex flex-col gap-1 list-decimal pl-4">{imp.memoria.map((m, i) => <li key={i}>{m}</li>)}</ol><p className="text-xs text-text-3 mt-2">Tabelas: {tt.anexoIII.descricao}. Vencimento estimado do DAS: {das ? fmtDate(das.vencimento) : "—"}. Os códigos (1001 IRPJ, 1002 CSLL, 1006 INSS/CPP…) são os da composição da guia DAS.</p></Card>
+      <Card title="Memória de cálculo" info={<>Tabelas: {tt.anexoIII.descricao}. Vencimento estimado do DAS: {das ? fmtDate(das.vencimento) : "—"}. Os códigos (1001 IRPJ, 1002 CSLL, 1006 INSS/CPP…) são os da composição da guia DAS.</>}><ol className="text-xs font-mono text-text-2 flex flex-col gap-1 list-decimal pl-4">{imp.memoria.map((m, i) => <li key={i}>{m}</li>)}</ol></Card>
     </div>
   );
 }

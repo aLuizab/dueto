@@ -2,6 +2,20 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versionamento semântico.
 
+## [0.2.0] — 2026-09-30
+
+### Alterado
+- Aba **Casa** renomeada para **Pessoal** (rota `/pessoal`; `/casal` continua funcionando). Migração 3 renomeia o orçamento com o nome padrão antigo.
+- Textos explicativos no meio das telas viraram ícones ⓘ com dica (Empresa, Impostos, Balanço, Lucros, Pessoal, Configurações). O painel de avisos começa recolhido, como um botão "N avisos" no canto. O aviso "sem vigência ativa" aparece só em Configurações → Tabelas fiscais.
+
+### Corrigido
+- **Gerar recorrências** agora informa o resultado (quantos lançamentos criou, se já existiam ou se não há recorrência). "Repetir todo mês" vincula o lançamento original à recorrência (sem duplicar o mês) e pode ser ligado/desligado ao editar um lançamento existente.
+
+### Removido
+- Perfil **Autônomo PF** por completo: tela "Autônomo", passo do assistente, entidade `AUTONOMO_PF`, carnê-leão/livro-caixa, INSS contribuinte individual, pacientes, categorias e regras `pf-*`, categoria "Renda autônoma", livro-caixa no pacote do contador e o importador da aba CONSULTÓRIO (agora ignorada).
+- Migração 2 do banco: apaga entidades autônomas e seus lançamentos, recorrências, contas, metas e obrigações; remove a tabela `patients`, as categorias/regras `pf-*` e `rec-autonomo` (lançamentos nela ficam sem categoria) e as configurações `autonomo.*`.
+- Atalhos das telas passam a ser `Alt+1…7`.
+
 ## [0.1.0] — 2026-09-28
 
 ### Adicionado

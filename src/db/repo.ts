@@ -1,7 +1,7 @@
 /**
  * Mapeamento tabelas ↔ objetos de domínio (snake_case ↔ camelCase, JSON, booleanos).
  */
-import type { Account, Budget, Category, Client, Contribution, Entity, Goal, Investment, InvestmentSnapshot, Invoice, Patient, Payroll, Recurrence, Transaction } from "@core/domain/types";
+import type { Account, Budget, Category, Client, Contribution, Entity, Goal, Investment, InvestmentSnapshot, Invoice, Payroll, Recurrence, Transaction } from "@core/domain/types";
 import type { CategRule } from "@core/categorize";
 import type { Database, Row } from "./database";
 
@@ -71,15 +71,14 @@ export function makeTables(db: () => Database) {
   return {
     entities: new Table<Entity>("entities", ["id", "tipo", "nome", "documento", "municipio", "uf", "regime", ["config", "json"], ["ativa", "bool"]], db),
     accounts: new Table<Account>("accounts", ["id", "entityId", "nome", "tipo", "instituicao", "moeda", ["diaFechamento", "num"], ["diaVencimento", "num"], ["ativa", "bool"]], db),
-    categories: new Table<Category>("categories", ["id", "nome", "parentId", "tipo", ["fixa", "bool"], ["dedutivelLivroCaixa", "bool"], "contaDre", ["escopo", "json"], "cor", "icone"], db),
+    categories: new Table<Category>("categories", ["id", "nome", "parentId", "tipo", ["fixa", "bool"], "contaDre", ["escopo", "json"], "cor", "icone"], db),
     transactions: new Table<Transaction>("transactions", [
       "id", "entityId", "accountId", "categoryId", "kind", "competencia", "vencimento", "pagamento", ["valor", "num"], "moeda", ["cotacao", "num"], ["valorBrl", "num"], "descricao", "status",
-      ["parcelaAtual", "num"], ["parcelaTotal", "num"], "grupoParcelamentoId", "recorrenciaId", ["tags", "json"], "anexo", "valorExpressao", "pagoPor", "clientId", "patientId", ["exportacao", "bool"], "invoiceId", "origemId", ["custoCambioBrl", "num"], ["meta", "json"],
+      ["parcelaAtual", "num"], ["parcelaTotal", "num"], "grupoParcelamentoId", "recorrenciaId", ["tags", "json"], "anexo", "valorExpressao", "pagoPor", "clientId", ["exportacao", "bool"], "invoiceId", "origemId", ["custoCambioBrl", "num"], ["meta", "json"],
     ], db),
     recurrences: new Table<Recurrence>("recurrences", ["id", "entityId", "descricao", "categoryId", "accountId", "kind", "periodicidade", ["diaVencimento", "num"], ["mesVencimento", "num"], ["valorPadrao", "num"], "moeda", ["ativa", "bool"], "inicio", "fim"], db),
     invoices: new Table<Invoice>("invoices", ["id", "entityId", "numero", "data", "clientId", "tomador", "moeda", ["valor", "num"], ["cotacao", "num"], ["valorBrl", "num"], "tipo", "status", "codigoServico", "municipio", ["transactionIds", "json"]], db),
     clients: new Table<Client>("clients", ["id", "entityId", "nome", "tipo", "pais", "moeda"], db),
-    patients: new Table<Patient>("patients", ["id", "entityId", "nome", ["valorConsulta", "num"], ["ativo", "bool"]], db),
     investments: new Table<Investment>("investments", ["id", "entityId", "nome", "instituicao", "tipo", "indexador", ["ativo", "bool"]], db),
     snapshots: new Table<InvestmentSnapshot>("investment_snapshots", ["id", "investmentId", "data", ["saldo", "num"]], db),
     contributions: new Table<Contribution>("contributions", ["id", "investmentId", "transactionId", "data", ["valor", "num"]], db),
