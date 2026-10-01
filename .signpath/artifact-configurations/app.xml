@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SignPath: artifact configuration "app" (slug: app).
+     Entrada: zip do win-unpacked gerado pelo electron-builder (os arquivos ficam na raiz do zip).
+     Assina o executável do app e o auxiliar de elevação; as DLLs do Electron não são alteradas. -->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <zip-file>
+    <pe-file path="Dueto.exe" product-name="Dueto">
+      <authenticode-sign />
+    </pe-file>
+    <pe-file path="resources/elevate.exe">
+      <authenticode-sign />
+    </pe-file>
+  </zip-file>
+</artifact-configuration>

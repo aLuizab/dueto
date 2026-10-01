@@ -1,0 +1,27 @@
+name: Sugestão
+description: Recomende uma melhoria ou recurso novo para o Dueto
+title: "[Sugestão] "
+labels: ["sugestão"]
+body:
+  - type: markdown
+    attributes:
+      value: Obrigado por sugerir! Antes de enviar, veja se já existe uma sugestão parecida e deixe um 👍 nela.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área do app
+      options: [Pessoal, Empresa (PJ), Impostos, Investimentos, Importação, Outra]
+    validations:
+      required: true
+  - type: textarea
+    id: problema
+    attributes:
+      label: Que problema isso resolve?
+      placeholder: Hoje eu preciso… e perco tempo com…
+    validations:
+      required: true
+  - type: textarea
+    id: solucao
+    attributes:
+      label: Como você imagina a solução?
+      description: Opcional. Telas, exemplos de cálculo e normas fiscais ajudam.

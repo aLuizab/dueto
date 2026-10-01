@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SignPath: artifact configuration "installers" (slug: installers).
+     Entrada: zip com Dueto-Setup-X.Y.Z.exe e Dueto-portable.exe. -->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <zip-file>
+    <pe-file-set>
+      <include path="Dueto-Setup-*.exe" />
+      <include path="Dueto-portable.exe" />
+      <for-each>
+        <authenticode-sign />
+      </for-each>
+    </pe-file-set>
+  </zip-file>
+</artifact-configuration>

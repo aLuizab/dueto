@@ -32,7 +32,7 @@ Baixe na página de Releases:
 - `Dueto-Setup-x.y.z.exe` — instalador (NSIS), cria atalhos e permite escolher a pasta;
 - `Dueto-portable.exe` — versão portátil, sem instalação.
 
-Na primeira abertura, um assistente pergunta as pessoas do orçamento, se há empresa, e se você quer importar planilhas, começar do zero ou usar dados de exemplo.
+Na primeira abertura, um assistente pergunta as pessoas do orçamento, se há empresa, e se você quer importar extratos, começar do zero ou usar dados de exemplo.
 
 ## Importação
 
@@ -60,33 +60,40 @@ npm test           # testes do core (fiscal, parcelas, expressões, CSV/OFX, des
 npm run dev        # Vite + Electron com hot reload
 npm run build      # typecheck + Vite + esbuild (electron/)
 npm run dist:win   # instalador NSIS + portátil em release/ (no Windows)
-npm run report:samples   # regenera docs/relatorio-importacao-samples.md
 ```
 
 ### Build público × build pessoal
 
 - `npm run dist:win` gera o **público** em `release/publico/` (`Dueto-Setup-x.y.z.exe`, `Dueto-portable.exe`). Não contém dados: abre no assistente. É o que vai para a Release.
 - `npm run seed:pessoal` copia o seu banco (`%APPDATA%\Dueto\dueto.db`) para `private/seed/`, e `npm run dist:win:pessoal` gera o **pessoal** em `release/pessoal/` (`Dueto-Pessoal-*.exe`). Ele embute essa cópia e a restaura na primeira abertura quando a máquina não tem banco. Não distribua.
-- `private/`, `samples/` e o relatório da importação estão no `.gitignore`.
+- `private/` (banco pessoal) e `samples/` (planilhas pessoais, se existirem localmente) estão no `.gitignore` e nunca vão para o repositório.
 - Para testar qualquer build sem tocar nos seus dados: `Dueto.exe --data-dir=C:\caminho\teste`.
 
 ### Assinatura digital
 
-Os executáveis não são assinados. No Windows 11 com o **Controle Inteligente de Aplicativos** (Smart App Control) em modo obrigatório, um `.exe` novo e sem assinatura pode ser bloqueado com a mensagem "bloqueado pela política do Device Guard". Para distribuir ao público, assine o instalador e o portátil (por exemplo com Azure Trusted Signing ou um certificado de assinatura de código) configurando `win.azureSignOptions` ou `CSC_LINK`/`CSC_KEY_PASSWORD` no electron-builder.
-
-No Windows, `scripts\build-windows.ps1` faz tudo; a Action `.github/workflows/release.yml` compila em `windows-latest` e anexa os binários à Release quando uma tag `v*.*.*` é criada.
+A Action `.github/workflows/release.yml` compila em `windows-latest` a cada tag `v*.*.*`, assina os executáveis pela SignPath (quando configurada) e publica a Release com as notas do CHANGELOG. Sem assinatura, o Smart App Control do Windows 11 pode bloquear o `.exe` ("bloqueado pela política do Device Guard"). Passo a passo em [docs/assinatura-de-codigo.md](docs/assinatura-de-codigo.md). No Windows, `scriptsuild-windows.ps1` gera os binários localmente (sem assinatura).
 
 Estrutura:
 
 ```
-core/            regras e cálculos (tax/, importers/, dre, couple, investments, parcelas, expression)
+core/            regras e cálculos (tax/, importers/ CSV/OFX, dre, couple, investments, parcelas, expression)
 electron/        processo principal (janela, arquivo do banco, backups, diálogos, PTAX) e preload
 src/             renderer React (db/, state/, components/, pages/)
-docs/            memória de cálculo, suposições, relatório das planilhas de exemplo
-samples/         planilhas de exemplo usadas pelos testes dos importadores
+docs/            memória de cálculo, suposições, assinatura de código
+tools/fator_r/   calculadora independente do Fator R em Python
 ```
 
 Atalhos: `Ctrl+K` busca, `Alt+1…7` telas, `[` `]` mês anterior/próximo, `T` mês atual, `Ctrl+I` importar.
+
+## Política de assinatura de código
+
+Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org) *(solicitação em andamento; até a aprovação, os binários saem sem assinatura)*.
+
+- Autoria e revisão (committers e reviewers): [aLuizab](https://github.com/aLuizab)
+- Aprovação das assinaturas (approvers): [aLuizab](https://github.com/aLuizab)
+- Só são assinados binários compilados pelo GitHub Actions a partir deste repositório público.
+
+**Privacidade:** este programa não transfere nenhuma informação para outros sistemas em rede, a não ser que o usuário peça explicitamente: o único acesso à rede é o botão opcional de cotação PTAX, que consulta a API pública do Banco Central. Os dados ficam só no computador do usuário.
 
 ## Licença
 

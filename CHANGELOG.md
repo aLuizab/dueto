@@ -2,6 +2,17 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versionamento semântico.
 
+## [Não lançado]
+
+## [0.2.1] — 2026-09-30
+
+### Adicionado
+- Assinatura de código pela **SignPath Foundation** no GitHub Actions: assina o `Dueto.exe` antes de montar o instalador e depois o instalador e a versão portátil (liga sozinha quando a SignPath estiver configurada; ver `docs/assinatura-de-codigo.md`). Notas das Releases tiradas deste CHANGELOG.
+- Guia de contribuição (`CONTRIBUTING.md`), modelo de issue "Sugestão" e modelo de pull request. Política de assinatura e de privacidade no README.
+
+### Removido
+- Dados reais do repositório para torná-lo público: valores das guias DAS, receitas, folha e pró-labore usados nos testes e na memória de cálculo viraram um exemplo fictício calculado à mão; importadores e testes construídos sobre planilhas pessoais; termos pessoais nas regras de categorização.
+
 ## [0.2.0] — 2026-09-30
 
 ### Alterado
