@@ -122,3 +122,23 @@ jobs:
           body_path: notas.md
           files: dist-release/*
           overwrite_files: true
+
+  # Avisa o site (aLuizab/dueto-site) para atualizar o histórico de versões e publicar.
+  # Precisa do segredo SITE_DISPATCH_TOKEN: token fine-grained só do dueto-site com Contents: Read and write.
+  site:
+    needs: build-windows
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Avisar dueto-site
+        env:
+          TOKEN: ${{ secrets.SITE_DISPATCH_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::notice::SITE_DISPATCH_TOKEN não configurado; o site atualiza na sincronização diária."
+            exit 0
+          fi
+          curl -fsS -X POST https://api.github.com/repos/aLuizab/dueto-site/dispatches \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $TOKEN" \
+            -d '{"event_type":"dueto-release","client_payload":{"version":"${{ github.ref_name }}"}}'
