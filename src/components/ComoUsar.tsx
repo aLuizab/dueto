@@ -16,7 +16,7 @@ const PASSOS: { titulo: string; texto: React.ReactNode }[] = [
   },
   {
     titulo: "Organize a casa",
-    texto: <>Em <b>Pessoal</b>, veja receitas por pessoa, despesas fixas e variáveis, quanto cada um deve transferir para o comum, metas por categoria, objetivos e faturas de cartão. Marque "Repetir todo mês" nas contas fixas e use <b>Gerar recorrências</b> a cada mês.</>,
+    texto: <>Em <b>Pessoal</b>, veja receitas por pessoa, despesas fixas e variáveis, quanto cada um deve transferir para o comum, metas por categoria, objetivos e faturas de cartão. Marque "Repetir todo mês" nas contas fixas: elas aparecem sozinhas nos lançamentos de cada mês, e você liga ou desliga cada uma por mês.</>,
   },
   {
     titulo: "Cuide da empresa",

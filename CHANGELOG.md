@@ -4,6 +4,16 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 
 ## [Não lançado]
 
+### Alterado
+- **Recorrências entram sozinhas nos lançamentos de cada mês** e contam nas despesas, sem precisar de "Gerar recorrências" (botão removido). Ao abrir o app ou trocar de mês, o Dueto cria os lançamentos que faltam até o mês atual (ou até o mês aberto, se for depois).
+- **Cada mês é independente**: o card "Recorrências do mês" (aba Lançamentos) e a coluna "Em <mês>" da aba Recorrências ligam/desligam a recorrência só naquele mês. Excluir um lançamento recorrente também desliga só aquele mês. "Meses seguintes" (e "Continuar repetindo" no formulário) para a recorrência depois do mês aberto sem mexer nos anteriores. O Balanço da empresa respeita os meses desligados.
+- Migração 4 do banco: coluna `meses_desligados` nas recorrências.
+
+### Adicionado
+- Aba **Cartões** mostra a soma de todos os cartões de crédito no mês ("Todos os cartões"), o total de cada cartão e a maior fatura.
+- Selo "recorrente" nos lançamentos gerados por recorrência.
+- **"Começou em"** na recorrência (formulário do lançamento e aba Recorrências): escolher um mês anterior inclui o lançamento nos meses que já passaram, marcados como pagos (opcional no formulário). Adiar o início remove os lançamentos pendentes de antes dele.
+
 ## [0.2.1] — 2026-09-30
 
 ### Adicionado

@@ -1,6 +1,7 @@
 /**
  * Formulário de lançamento: aceita expressão no valor (=120+150), parcelamento (gera parcelas futuras),
  * moeda/cotação com busca PTAX opcional, recorrência, status e "quem pagou".
+ * "Repetir todo mês" num lançamento existente para/retoma a recorrência a partir dele; meses anteriores não mudam.
  */
 import { useEffect, useMemo, useState } from "react";
 import type { Currency, Transaction, TxKind, TxStatus } from "@core/domain/types";
@@ -10,7 +11,8 @@ import { round2, toBrl } from "@core/money";
 import { generateRemainingInstallments } from "@core/parcelas";
 import { categorize } from "@core/categorize";
 import { categoriaNome } from "@core/seed/categories";
-import { dateInMonth, monthKeyOf, todayISO } from "@core/dates";
+import { addMonths, dateInMonth, fmtMonth, monthKeyOf, todayISO } from "@core/dates";
+import { pararDepoisDe, repeteDepoisDe, retomarEm } from "@core/recorrencias";
 import { Button, Dialog, Field, Input, Select, Switch } from "@/components/ui";
 import { novoTx, useStore } from "@/state/store";
 
@@ -47,7 +49,10 @@ export function TransactionForm({ open, onOpenChange, entityId, initial, kindDef
   const [parcelaAtual, setParcelaAtual] = useState(initial?.parcelaAtual ? String(initial.parcelaAtual) : "1");
   const [exportacao, setExportacao] = useState(initial?.exportacao ?? (ent?.tipo === "PJ" && ent.config.fatura?.exportacao !== false));
   const recAtual = initial?.recorrenciaId ? s.recurrences.find((r) => r.id === initial.recorrenciaId) : undefined;
-  const [recorrente, setRecorrente] = useState(!!recAtual?.ativa);
+  const repetindo = !!recAtual && repeteDepoisDe(recAtual, initial?.competencia ?? s.competencia);
+  const [recorrente, setRecorrente] = useState(repetindo);
+  const [inicioRec, setInicioRec] = useState(recAtual?.inicio ?? initial?.competencia ?? s.competencia);
+  const [pagarAnteriores, setPagarAnteriores] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [ptaxMsg, setPtaxMsg] = useState<string | null>(null);
 
@@ -57,7 +62,7 @@ export function TransactionForm({ open, onOpenChange, entityId, initial, kindDef
     setMoeda(initial?.moeda ?? "BRL"); setCotacao(initial?.cotacao ? String(initial.cotacao) : ""); setCompetencia(initial?.competencia ?? s.competencia);
     setVencimento(initial?.vencimento ?? ""); setPagamento(initial?.pagamento ?? ""); setStatus(initial?.status ?? "pendente"); setCategoryId(initial?.categoryId ?? "");
     setAccountId(initial?.accountId ?? ""); setPagoPor(initial?.pagoPor ?? ""); setParcelas(initial?.parcelaTotal ? String(initial.parcelaTotal) : ""); setParcelaAtual(initial?.parcelaAtual ? String(initial.parcelaAtual) : "1");
-    setExportacao(initial?.exportacao ?? (ent?.tipo === "PJ" && ent.config.fatura?.exportacao !== false)); setRecorrente(!!recAtual?.ativa); setErro(null); setPtaxMsg(null);
+    setExportacao(initial?.exportacao ?? (ent?.tipo === "PJ" && ent.config.fatura?.exportacao !== false)); setRecorrente(repetindo); setInicioRec(recAtual?.inicio ?? initial?.competencia ?? s.competencia); setPagarAnteriores(true); setErro(null); setPtaxMsg(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -98,16 +103,22 @@ export function TransactionForm({ open, onOpenChange, entityId, initial, kindDef
       exportacao: kind === "receita" && ent?.tipo === "PJ" ? exportacao : false,
       tags: initial?.tags ?? [], meta: initial?.meta ?? {}, recorrenciaId: initial?.recorrenciaId ?? null, clientId: initial?.clientId ?? null, invoiceId: initial?.invoiceId ?? null, origemId: initial?.origemId ?? null, custoCambioBrl: initial?.custoCambioBrl ?? null, anexo: initial?.anexo ?? null,
     };
-    if (recorrente && !recAtual?.ativa) {
-      // cria a recorrência e já vincula este lançamento, para "Gerar recorrências" não duplicar o mês atual
-      const recId = recAtual?.id ?? newId("rec");
-      s.upsertRecurrence({ id: recId, entityId, descricao: descricao.trim(), categoryId: categoryId || null, accountId: accountId || null, kind, periodicidade: "mensal", diaVencimento: vencimento ? Number(vencimento.slice(8, 10)) : 10, mesVencimento: null, valorPadrao: valorEval.value, moeda, ativa: true, inicio: competencia, fim: null });
-      base.recorrenciaId = recId;
-    } else if (!recorrente && recAtual?.ativa) {
-      s.upsertRecurrence({ ...recAtual, ativa: false });
-    }
+    if (recorrente && inicioRec > competencia) return setErro("O mês em que a recorrência começou não pode ser depois deste lançamento.");
     if (ent?.tipo === "PJ" && kind === "receita") base.categoryId = base.categoryId || (base.exportacao ? "pj-rec-exportacao" : "pj-rec-nacional");
+    if (recorrente && !recAtual) base.recorrenciaId = newId("rec");
+    // grava o lançamento antes da recorrência: ao salvar a recorrência os meses que faltam são gerados, e este mês já existe
     s.upsertTransaction(base, editing);
+    if (recorrente && !recAtual) {
+      s.upsertRecurrence({ id: base.recorrenciaId!, entityId, descricao: descricao.trim(), categoryId: categoryId || null, accountId: accountId || null, kind, periodicidade: "mensal", diaVencimento: vencimento ? Number(vencimento.slice(8, 10)) : 10, mesVencimento: null, valorPadrao: valorEval.value, moeda, ativa: true, inicio: competencia, fim: null, mesesDesligados: [] });
+    } else if (recorrente && recAtual && !repetindo) {
+      s.upsertRecurrence(retomarEm(recAtual, addMonths(competencia, 1)));
+    } else if (!recorrente && recAtual && repetindo) {
+      // para depois deste mês: apaga os lançamentos futuros ainda pendentes; este e os anteriores ficam
+      s.deleteTransactions(s.transactions.filter((t) => t.recorrenciaId === recAtual.id && t.competencia > competencia && t.status === "pendente").map((t) => t.id));
+      s.upsertRecurrence(pararDepoisDe(useStore.getState().recurrences.find((r) => r.id === recAtual.id) ?? recAtual, competencia));
+    }
+    // "Começou em": inclui (ou tira) os meses anteriores a este lançamento
+    if (recorrente && base.recorrenciaId && inicioRec) s.setInicioRecorrencia(base.recorrenciaId, inicioRec, pagarAnteriores);
     if (!editing && total > 1 && atual < total) {
       const dia = vencimento ? Number(vencimento.slice(8, 10)) : 10;
       const futuras = generateRemainingInstallments({ competencia, parcelaAtual: atual, parcelaTotal: total, valor: valorEval.value, diaVencimento: dia }).map((f) => ({
@@ -163,8 +174,14 @@ export function TransactionForm({ open, onOpenChange, entityId, initial, kindDef
         {Number(parcelas) > 1 && <Field label="Parcela atual"><Input type="number" min={1} max={Number(parcelas)} value={parcelaAtual} onChange={(e) => setParcelaAtual(e.target.value)} /></Field>}
         <div className="sm:col-span-2 flex flex-wrap gap-4 pt-1">
           {ent?.tipo === "PJ" && kind === "receita" && <Switch checked={exportacao} onCheckedChange={setExportacao} label="Exportação de serviço" />}
-          <Switch checked={recorrente} onCheckedChange={setRecorrente} label="Repetir todo mês (recorrência)" />
+          <Switch checked={recorrente} onCheckedChange={setRecorrente} label={recAtual ? "Continuar repetindo nos próximos meses" : "Repetir todo mês (recorrência)"} />
         </div>
+        {recorrente && <>
+          <Field label="Começou em" hint={inicioRec < competencia ? `Inclui o lançamento nos meses anteriores, desde ${fmtMonth(inicioRec, "long").toLowerCase()}` : "Escolha um mês anterior para incluir os meses que já passaram"}>
+            <Input type="month" value={inicioRec} max={competencia} onChange={(e) => setInicioRec(e.target.value || competencia)} />
+          </Field>
+          {inicioRec < competencia && <div className="flex items-end pb-2"><Switch checked={pagarAnteriores} onCheckedChange={setPagarAnteriores} label="Marcar meses que já passaram como pagos" /></div>}
+        </>}
         {erro && <p className="sm:col-span-2 text-sm text-bad">{erro}</p>}
         {ent?.tipo === "CASAL" || ent?.tipo === "PESSOA" ? <p className="sm:col-span-2 text-xs text-text-3">Mês de competência: {monthKeyOf(vencimento || `${competencia}-01`) === competencia ? "igual ao vencimento" : "diferente do vencimento (ok para faturas de cartão)"}.</p> : null}
       </div>

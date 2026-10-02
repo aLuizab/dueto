@@ -3,7 +3,8 @@
  * meses futuros com receita prevista (configurável), impostos estimados, recorrências e pró-labore pela política.
  */
 import type { Entity, MonthKey } from "@core/domain/types";
-import { addMonths, monthRange, splitMonthKey } from "@core/dates";
+import { addMonths, monthRange } from "@core/dates";
+import { desligadaNoMes, recorrenciaValeNoMes } from "@core/recorrencias";
 import { mediaUltimos, projetarBalanco, type BalancoMesInput, type BalancoResult } from "@core/balanco";
 import { round2 } from "@core/money";
 import { calcularDas, proLaboreMinimoFatorR, type SerieFolha, type SerieReceitas } from "@core/tax/simples";
@@ -41,7 +42,7 @@ export function montarBalanco(s: AppState, pj: Entity, mesAtual: MonthKey): { re
 
   // recorrências ativas da PJ (despesas fora de impostos/pró-labore)
   const recs = s.recurrences.filter((r) => r.entityId === pj.id && r.ativa && r.kind === "despesa" && !CATS_FORA_DESPESA.has(r.categoryId ?? ""));
-  const despesasRec = (mk: MonthKey) => round2(recs.filter((r) => r.inicio <= mk && (!r.fim || r.fim >= mk) && (r.periodicidade === "mensal" || r.mesVencimento === splitMonthKey(mk).month)).reduce((a, r) => a + (r.moeda === "BRL" ? r.valorPadrao : 0), 0));
+  const despesasRec = (mk: MonthKey) => round2(recs.filter((r) => recorrenciaValeNoMes(r, mk) && !desligadaNoMes(r, mk)).reduce((a, r) => a + (r.moeda === "BRL" ? r.valorPadrao : 0), 0));
   const despesasPadrao = cfg.despesasMensais ?? despesasRec(mesAtual);
 
   // caixa inicial: tudo pago até o mês anterior

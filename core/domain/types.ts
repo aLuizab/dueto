@@ -151,6 +151,8 @@ export interface Recurrence {
   ativa: boolean;
   inicio: MonthKey;
   fim?: MonthKey | null;
+  /** meses em que a recorrência foi desligada só naquele mês (não gera lançamento) */
+  mesesDesligados?: MonthKey[];
 }
 
 export interface Invoice {
