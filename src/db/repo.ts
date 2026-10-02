@@ -33,7 +33,7 @@ export class Table<T extends { id: string }> {
     const o: Record<string, unknown> = {};
     for (const c of this.cols) {
       const v = row[c.col];
-      if (v === null || v === undefined) { o[String(c.key)] = c.type === "json" ? (c.col === "tags" || c.col === "transaction_ids" || c.col === "escopo" ? [] : c.col === "meta" || c.col === "config" ? {} : null) : c.type === "bool" ? false : null; continue; }
+      if (v === null || v === undefined) { o[String(c.key)] = c.type === "json" ? (c.col === "tags" || c.col === "transaction_ids" || c.col === "escopo" || c.col === "meses_desligados" ? [] : c.col === "meta" || c.col === "config" ? {} : null) : c.type === "bool" ? false : null; continue; }
       switch (c.type) {
         case "bool": o[String(c.key)] = Boolean(v); break;
         case "json": try { o[String(c.key)] = JSON.parse(String(v)); } catch { o[String(c.key)] = null; } break;
@@ -76,7 +76,7 @@ export function makeTables(db: () => Database) {
       "id", "entityId", "accountId", "categoryId", "kind", "competencia", "vencimento", "pagamento", ["valor", "num"], "moeda", ["cotacao", "num"], ["valorBrl", "num"], "descricao", "status",
       ["parcelaAtual", "num"], ["parcelaTotal", "num"], "grupoParcelamentoId", "recorrenciaId", ["tags", "json"], "anexo", "valorExpressao", "pagoPor", "clientId", ["exportacao", "bool"], "invoiceId", "origemId", ["custoCambioBrl", "num"], ["meta", "json"],
     ], db),
-    recurrences: new Table<Recurrence>("recurrences", ["id", "entityId", "descricao", "categoryId", "accountId", "kind", "periodicidade", ["diaVencimento", "num"], ["mesVencimento", "num"], ["valorPadrao", "num"], "moeda", ["ativa", "bool"], "inicio", "fim"], db),
+    recurrences: new Table<Recurrence>("recurrences", ["id", "entityId", "descricao", "categoryId", "accountId", "kind", "periodicidade", ["diaVencimento", "num"], ["mesVencimento", "num"], ["valorPadrao", "num"], "moeda", ["ativa", "bool"], "inicio", "fim", ["mesesDesligados", "json"]], db),
     invoices: new Table<Invoice>("invoices", ["id", "entityId", "numero", "data", "clientId", "tomador", "moeda", ["valor", "num"], ["cotacao", "num"], ["valorBrl", "num"], "tipo", "status", "codigoServico", "municipio", ["transactionIds", "json"]], db),
     clients: new Table<Client>("clients", ["id", "entityId", "nome", "tipo", "pais", "moeda"], db),
     investments: new Table<Investment>("investments", ["id", "entityId", "nome", "instituicao", "tipo", "indexador", ["ativo", "bool"]], db),

@@ -99,6 +99,7 @@ export function TransactionTable({ rows, onEdit, showEntity, compact, exportName
                       <span className="truncate max-w-[28ch]" title={t.descricao}>{t.descricao}</span>
                       {t.parcelaTotal && <Pill tone="muted">{t.parcelaAtual}/{t.parcelaTotal}{faltam ? ` · faltam ${faltam}` : ""}</Pill>}
                       {t.exportacao && <Pill tone="info">export.</Pill>}
+                      {t.recorrenciaId && <Pill tone="muted">recorrente</Pill>}
                       {t.tags.includes("projecao") && <Pill tone="muted">projeção</Pill>}
                       {t.valorExpressao && <Tip text={t.valorExpressao}><span className="mono text-[10px] text-text-3">ƒ</span></Tip>}
                     </div>

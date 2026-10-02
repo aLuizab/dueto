@@ -101,4 +101,9 @@ export const MIGRATIONS: Migration[] = [
     nome: "aba Casa passa a se chamar Pessoal",
     sql: `UPDATE entities SET nome = 'Pessoal' WHERE tipo = 'CASAL' AND nome IN ('Orçamento da casa', 'Casa');`,
   },
+  {
+    version: 4,
+    nome: "recorrências ligadas/desligadas por mês",
+    sql: `ALTER TABLE recurrences ADD COLUMN meses_desligados TEXT NOT NULL DEFAULT '[]';`,
+  },
 ];

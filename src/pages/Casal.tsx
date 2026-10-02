@@ -1,9 +1,10 @@
 /** Módulo Pessoal (finanças da casa/casal): resumo do mês, lançamentos, quem paga o quê, metas, objetivos, cartões e recorrências. */
 import { useMemo, useState } from "react";
-import { Plus, RefreshCw } from "lucide-react";
-import type { Budget, Goal, Transaction } from "@core/domain/types";
+import { Plus } from "lucide-react";
+import type { Budget, Goal, Recurrence, Transaction } from "@core/domain/types";
 import { aporteSugerido, progressoMetas, quemPagaOQue, resumoMensalCasal } from "@core/couple";
-import { addMonths, dateInMonth, fmtDate, fmtMonth, todayISO } from "@core/dates";
+import { addMonths, fmtDate, fmtMonth, todayISO } from "@core/dates";
+import { pararDepoisDe, recorrenciaValeNoMes, repeteDepoisDe, retomarEm } from "@core/recorrencias";
 import { newId } from "@core/ids";
 import { fmtMoney, fmtPct, round2 } from "@core/money";
 import { categoriaNome, categoriaRaiz } from "@core/seed/categories";
@@ -11,7 +12,7 @@ import { Button, Card, Confirm, Dialog, Field, InfoTip, Input, Money, PageHeader
 import { DonutChart } from "@/components/charts";
 import { TransactionForm } from "@/components/TransactionForm";
 import { TransactionTable } from "@/components/TransactionTable";
-import { novoTx, selCasal, selPessoas, useStore } from "@/state/store";
+import { selCasal, selPessoas, useStore } from "@/state/store";
 
 export default function Casal() {
   const s = useStore();
@@ -28,22 +29,11 @@ export default function Casal() {
 
   const porCategoria = Object.entries(rows.filter((t) => t.kind === "despesa").reduce<Record<string, number>>((acc, t) => { const r = categoriaRaiz(t.categoryId, s.categories)?.nome ?? "Sem categoria"; acc[r] = (acc[r] ?? 0) + t.valorBrl; return acc; }, {})).map(([nome, valor]) => ({ nome, valor }));
 
-  function gerarRecorrencias() {
-    const recs = s.recurrences.filter((r) => r.ativa && ids.includes(r.entityId) && r.inicio <= mk && (!r.fim || r.fim >= mk) && (r.periodicidade === "mensal" || r.mesVencimento === Number(mk.slice(5, 7))));
-    const novos = recs.filter((r) => !s.transactions.some((t) => t.recorrenciaId === r.id && t.competencia === mk)).map((r) =>
-      novoTx({ entityId: r.entityId, kind: r.kind, competencia: mk, descricao: r.descricao, valor: r.valorPadrao, categoryId: r.categoryId, accountId: r.accountId, vencimento: dateInMonth(mk, r.diaVencimento), recorrenciaId: r.id, moeda: r.moeda, valorBrl: r.moeda === "BRL" ? r.valorPadrao : 0 }));
-    if (recs.length === 0) return s.notificar("Nenhuma recorrência ativa para este mês. Ao criar ou editar um lançamento, ligue \"Repetir todo mês\".");
-    if (novos.length === 0) return s.notificar(`Os lançamentos recorrentes de ${fmtMonth(mk, "long")} já existem.`);
-    s.upsertTransactions(novos);
-    s.notificar(`${novos.length} lançamento${novos.length > 1 ? "s" : ""} recorrente${novos.length > 1 ? "s" : ""} criado${novos.length > 1 ? "s" : ""} em ${fmtMonth(mk, "long")}.`);
-  }
-
   return (
     <div className="flex flex-col gap-5">
-      <PageHeader title={casal.nome} subtitle={`${fmtMonth(mk, "long")} · ${pessoas.map((p) => p.nome).join(" e ")}`} actions={<>
-        <Button onClick={gerarRecorrencias} title="Cria os lançamentos das recorrências ativas para este mês"><RefreshCw size={14} /> Gerar recorrências</Button>
+      <PageHeader title={casal.nome} subtitle={`${fmtMonth(mk, "long")} · ${pessoas.map((p) => p.nome).join(" e ")}`} actions={
         <Button variant="primary" onClick={() => setForm({ open: true, entityId: casal.id, initial: null })}><Plus size={14} /> Lançamento</Button>
-      </>} />
+      } />
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         <Stat label="Restante do mês anterior" value={resumo.restanteAnterior} sub={<Switch checked={!!casal.config.zerarRestante} onCheckedChange={(v) => s.upsertEntity({ ...casal, config: { ...casal.config, zerarRestante: v } })} label="zerar" />} />
         {resumo.receitasPorPessoa.map((p) => <Stat key={p.pessoaId} label={`Renda líquida — ${p.nome}`} value={p.liquido} sub={p.descontos ? `bruto ${fmtMoney(p.bruto)} · descontos ${fmtMoney(p.descontos)}` : undefined} />)}
@@ -56,7 +46,10 @@ export default function Casal() {
         <TabPanel value="lancamentos">
           <div className="grid xl:grid-cols-[1fr_320px] gap-4">
             <TransactionTable rows={rows} onEdit={(t) => setForm({ open: true, entityId: t.entityId, initial: t })} exportName={`pessoal-${mk}`} />
-            <Card title="Despesas por categoria"><DonutChart data={porCategoria} height={200} /></Card>
+            <div className="flex flex-col gap-4">
+              <Card title="Despesas por categoria"><DonutChart data={porCategoria} height={200} /></Card>
+              <RecorrenciasDoMes entityIds={ids} />
+            </div>
           </div>
         </TabPanel>
         <TabPanel value="quem"><QuemPaga rows={rows} /></TabPanel>
@@ -166,38 +159,91 @@ function GoalForm({ goal, onClose }: { goal: Goal; onClose: () => void }) {
 
 function Cartoes({ rows, onEdit }: { rows: Transaction[]; onEdit: (t: Transaction) => void }) {
   const s = useStore();
+  const casalId = selCasal(s)?.id;
   const cartoes = s.accounts.filter((a) => a.tipo === "cartao" && a.ativa);
-  const [sel, setSel] = useState<string>(cartoes[0]?.id ?? "");
-  const fatura = rows.filter((t) => t.accountId === sel);
-  const total = round2(fatura.filter((t) => t.kind === "despesa").reduce((a, t) => a + t.valorBrl, 0));
+  const [sel, setSel] = useState<string>(cartoes.length > 1 ? "todos" : cartoes[0]?.id ?? "");
+  const totalDe = (ts: Transaction[]) => round2(ts.filter((t) => t.kind === "despesa").reduce((a, t) => a + t.valorBrl, 0));
+  const porCartao = cartoes.map((c) => ({ c, total: totalDe(rows.filter((t) => t.accountId === c.id)) }));
+  const ids = new Set(cartoes.map((c) => c.id));
+  const todos = sel === "todos";
+  const fatura = rows.filter((t) => (todos ? ids.has(t.accountId ?? "") : t.accountId === sel));
+  const total = totalDe(fatura);
   const card = cartoes.find((c) => c.id === sel);
+  const maior = [...porCartao].sort((a, b) => b.total - a.total)[0];
+  const nomeCartao = (c: (typeof cartoes)[number]) => `${c.nome}${c.entityId !== casalId ? ` · ${s.entities.find((e) => e.id === c.entityId)?.nome ?? ""}` : ""}`;
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap gap-2 items-center">
-        {cartoes.map((c) => <button key={c.id} onClick={() => setSel(c.id)} className={`pill ${sel === c.id ? "pill-accent" : "pill-muted"}`}>{c.nome}{c.entityId !== selCasal(s)?.id ? ` · ${s.entities.find((e) => e.id === c.entityId)?.nome ?? ""}` : ""}</button>)}
+        {cartoes.length > 1 && <button onClick={() => setSel("todos")} className={`pill ${todos ? "pill-accent" : "pill-muted"}`}>Todos os cartões · <span className="num">{fmtMoney(round2(porCartao.reduce((a, x) => a + x.total, 0)))}</span></button>}
+        {porCartao.map(({ c, total: t }) => <button key={c.id} onClick={() => setSel(c.id)} className={`pill ${sel === c.id ? "pill-accent" : "pill-muted"}`}>{nomeCartao(c)} · <span className="num">{fmtMoney(t)}</span></button>)}
         {cartoes.length === 0 && <span className="text-sm text-text-3">Cadastre cartões em Configurações → Contas. Sufixos como "(Porto)" nas descrições viram cartões automaticamente na importação.</span>}
       </div>
+      {todos && <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Stat label="Soma dos cartões no mês" value={total} />
+        {maior && <Stat label="Maior fatura" value={maior.total} sub={maior.c.nome} />}
+        <Stat label="Cartões" value={cartoes.length} moeda="raw" />
+        <Stat label="Lançamentos" value={fatura.length} moeda="raw" />
+      </div>}
       {card && <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Stat label="Fatura do mês" value={total} />
         <Stat label="Fechamento" value={card.diaFechamento ? `dia ${card.diaFechamento}` : "—"} moeda="raw" />
         <Stat label="Vencimento" value={card.diaVencimento ? `dia ${card.diaVencimento}` : "—"} moeda="raw" />
         <Stat label="Lançamentos" value={fatura.length} moeda="raw" />
       </div>}
-      {card && <TransactionTable rows={fatura} onEdit={onEdit} compact exportName={`fatura-${card.nome}-${s.competencia}`} />}
+      {(card || todos) && <TransactionTable rows={fatura} onEdit={onEdit} compact exportName={`fatura-${card ? card.nome : "cartoes"}-${s.competencia}`} />}
     </div>
+  );
+}
+
+/** Recorrências que valem no mês aberto, com a chave que liga/desliga só neste mês. */
+function RecorrenciasDoMes({ entityIds }: { entityIds: string[] }) {
+  const s = useStore();
+  const mk = s.competencia;
+  const recs = s.recurrences.filter((r) => entityIds.includes(r.entityId) && (recorrenciaValeNoMes(r, mk) || s.transactions.some((t) => t.recorrenciaId === r.id && t.competencia === mk)));
+  if (recs.length === 0) return null;
+  return (
+    <Card title={`Recorrências de ${fmtMonth(mk, "long").toLowerCase()}`} info="Desligar aqui tira o lançamento só deste mês; os outros meses continuam como estão. Para parar de vez, use a aba Recorrências.">
+      <div className="flex flex-col gap-2">
+        {recs.map((r) => {
+          const tx = s.transactions.find((t) => t.recorrenciaId === r.id && t.competencia === mk);
+          return (
+            <div key={r.id} className={`flex items-center justify-between gap-2 text-sm ${tx ? "" : "opacity-60"}`}>
+              <Switch checked={!!tx} onCheckedChange={(v) => s.setRecorrenciaNoMes(r.id, mk, v)} label={r.descricao} />
+              <span className="num text-text-2 whitespace-nowrap">{fmtMoney(tx ? tx.valorBrl : r.valorPadrao, tx ? "BRL" : r.moeda)}</span>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
   );
 }
 
 export function Recorrencias({ entityIds }: { entityIds: string[] }) {
   const s = useStore();
+  const mk = s.competencia;
   const recs = s.recurrences.filter((r) => entityIds.includes(r.entityId));
+  const [del, setDel] = useState<string | null>(null);
+  function proximosMeses(r: Recurrence, v: boolean) {
+    if (v) return s.upsertRecurrence(retomarEm(r, r.inicio > mk ? r.inicio : addMonths(mk, 1)));
+    s.deleteTransactions(s.transactions.filter((t) => t.recorrenciaId === r.id && t.competencia > mk && t.status === "pendente").map((t) => t.id));
+    s.upsertRecurrence(pararDepoisDe(useStore.getState().recurrences.find((x) => x.id === r.id) ?? r, mk));
+  }
   return (
-    <div className="table-wrap max-w-4xl">
-      <table className="data"><thead><tr><th>Descrição</th><th>Categoria</th><th>Periodicidade</th><th className="r">Dia</th><th className="r">Valor</th><th>Início</th><th>Ativa</th><th></th></tr></thead>
+    <div className="table-wrap max-w-5xl">
+      <table className="data"><thead><tr><th>Descrição</th><th>Categoria</th><th>Periodicidade</th><th className="r">Dia</th><th className="r">Valor</th><th><span className="inline-flex items-center gap-1">Começou em <InfoTip>Mude para um mês anterior para incluir o lançamento nos meses que já passaram (entram como pagos). Adiar o início remove os lançamentos pendentes de antes dele.</InfoTip></span></th>
+        <th><span className="inline-flex items-center gap-1">Em {fmtMonth(mk)} <InfoTip>Liga/desliga só no mês aberto. Desligado, o lançamento deste mês sai das despesas; os outros meses não mudam.</InfoTip></span></th>
+        <th><span className="inline-flex items-center gap-1">Meses seguintes <InfoTip>Desligado, a recorrência para depois de {fmtMonth(mk)}: lançamentos futuros ainda pendentes são removidos e os meses até {fmtMonth(mk)} ficam como estão.</InfoTip></span></th><th></th></tr></thead>
         <tbody>
-          {recs.map((r) => <tr key={r.id}><td>{r.descricao}</td><td className="text-text-2">{categoriaNome(r.categoryId, s.categories)}</td><td>{r.periodicidade}</td><td className="r num">{r.diaVencimento}</td><td className="r num">{fmtMoney(r.valorPadrao, r.moeda)}</td><td className="num">{fmtMonth(r.inicio)}</td><td><Switch checked={r.ativa} onCheckedChange={(v) => s.upsertRecurrence({ ...r, ativa: v })} /></td><td><Button size="sm" variant="ghost" onClick={() => s.deleteRecurrence(r.id)}>Excluir</Button></td></tr>)}
-          {recs.length === 0 && <tr><td colSpan={8} className="text-center text-text-3 py-6">Nenhuma recorrência. Abra um lançamento (novo ou existente) e ligue "Repetir todo mês"; depois, em cada mês, "Gerar recorrências" cria os lançamentos de {fmtMonth(addMonths(s.competencia, 0))}.</td></tr>}
+          {recs.map((r) => {
+            const noMes = s.transactions.some((t) => t.recorrenciaId === r.id && t.competencia === mk);
+            return <tr key={r.id}><td>{r.descricao}</td><td className="text-text-2">{categoriaNome(r.categoryId, s.categories)}</td><td>{r.periodicidade}</td><td className="r num">{r.diaVencimento}</td><td className="r num">{fmtMoney(r.valorPadrao, r.moeda)}</td><td><Input type="month" className="w-36" value={r.inicio} max={mk > r.inicio ? mk : r.inicio} aria-label="Começou em" onChange={(e) => e.target.value && s.setInicioRecorrencia(r.id, e.target.value, true)} /></td>
+              <td>{recorrenciaValeNoMes(r, mk) || noMes ? <Switch checked={noMes} onCheckedChange={(v) => s.setRecorrenciaNoMes(r.id, mk, v)} /> : <span className="text-text-3 text-xs">—</span>}</td>
+              <td><Switch checked={repeteDepoisDe(r, mk)} onCheckedChange={(v) => proximosMeses(r, v)} /></td>
+              <td><Button size="sm" variant="ghost" onClick={() => setDel(r.id)}>Excluir</Button></td></tr>;
+          })}
+          {recs.length === 0 && <tr><td colSpan={9} className="text-center text-text-3 py-6">Nenhuma recorrência. Abra um lançamento (novo ou existente) e ligue "Repetir todo mês": ele passa a aparecer sozinho nos lançamentos de cada mês.</td></tr>}
         </tbody></table>
+      <Confirm open={!!del} onOpenChange={(o) => !o && setDel(null)} title="Excluir recorrência" message="Excluir a recorrência? Os lançamentos já criados continuam; ela só deixa de gerar novos." danger onConfirm={() => del && s.deleteRecurrence(del)} />
     </div>
   );
 }

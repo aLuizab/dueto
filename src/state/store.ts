@@ -8,7 +8,8 @@ import { SEED_CATEGORIES } from "@core/seed/categories";
 import { SEED_RULES, type CategRule, learnRule } from "@core/categorize";
 import { SEED_TAX_TABLES, type TaxTables, type IrpfTable, type InssTable, type SimplesAnexoTable, type SimplesParams, type MeiParams, type PresumidoParams, type IssMunicipio, type DividendosParams } from "@core/tax/tables";
 import { newId } from "@core/ids";
-import { currentMonthKey } from "@core/dates";
+import { currentMonthKey, dateInMonth } from "@core/dates";
+import { alternarMes, lancamentosRecorrentesFaltantes, mudarInicio } from "@core/recorrencias";
 import { Database } from "@/db/database";
 import { deleteTaxTable, loadObligationsDone, loadSettings, loadTaxTables, makeTables, saveSetting, saveTaxTable, setObligationDone, type Tables, type TaxTableRow } from "@/db/repo";
 
@@ -68,8 +69,18 @@ export interface AppState {
   upsertTransactions(ts: Transaction[]): void;
   deleteTransaction(id: string): void;
   deleteTransactions(ids: string[]): void;
+  /** grava a recorrência e cria os lançamentos que faltam até o mês atual (ou o mês aberto, se for depois) */
   upsertRecurrence(r: Recurrence): void;
   deleteRecurrence(id: string): void;
+  /** cria os lançamentos das recorrências que ainda não existem até o mês atual / mês aberto */
+  sincronizarRecorrencias(): void;
+  /** liga/desliga a recorrência só no mês `mk` (desligar remove o lançamento daquele mês) */
+  setRecorrenciaNoMes(recId: string, mk: string, ligada: boolean): void;
+  /**
+   * muda o mês em que a recorrência começou: antecipar cria os lançamentos dos meses anteriores
+   * (pagos, se `pagarAnteriores`, quando já passaram); adiar remove os pendentes que ficaram antes do início
+   */
+  setInicioRecorrencia(recId: string, inicio: string, pagarAnteriores: boolean): void;
   upsertInvoice(i: Invoice): void;
   deleteInvoice(id: string): void;
   upsertClient(c: Client): void;
@@ -167,13 +178,15 @@ export const useStore = create<AppState>((set, get) => {
         loadAll();
         const s = get().settings;
         const theme = (s["ui.theme"] as Theme) ?? "system";
-        set({ theme, ready: true, competencia: (s["ui.competencia"] as string) ?? currentMonthKey() });
+        set({ theme, competencia: (s["ui.competencia"] as string) ?? currentMonthKey() });
+        get().sincronizarRecorrencias();
+        set({ ready: true });
         if (window.dueto) { set({ info: await window.dueto.info() }); await window.dueto.backup.setAuto(s["backup.auto"] === true); }
       } catch (e) {
         set({ erro: (e as Error).message, ready: true });
       }
     },
-    setCompetencia(mk) { set({ competencia: mk }); if (get().db) saveSetting(dbx(), "ui.competencia", mk); },
+    setCompetencia(mk) { set({ competencia: mk }); if (get().db) { saveSetting(dbx(), "ui.competencia", mk); get().sincronizarRecorrencias(); } },
     setTheme(t) { set({ theme: t }); if (get().db) saveSetting(dbx(), "ui.theme", t); },
     setBusca(open) { set({ busca: open }); },
     setSetting(key, value) { saveSetting(dbx(), key, value); set({ settings: { ...get().settings, [key]: value } }); },
@@ -199,14 +212,51 @@ export const useStore = create<AppState>((set, get) => {
       for (const t of ts) map.set(t.id, t);
       set({ transactions: [...map.values()] });
     },
-    deleteTransaction: del("transactions", "transactions"),
+    deleteTransaction(id) { get().deleteTransactions([id]); },
     deleteTransactions(ids) {
-      tbl().transactions.deleteMany(ids);
       const s = new Set(ids);
+      const removidas = get().transactions.filter((t) => s.has(t.id));
+      tbl().transactions.deleteMany(ids);
       set({ transactions: get().transactions.filter((t) => !s.has(t.id)) });
+      // excluir um lançamento gerado por recorrência desliga a recorrência só naquele mês (senão ela o recriaria)
+      for (const t of removidas) {
+        const r = t.recorrenciaId ? get().recurrences.find((x) => x.id === t.recorrenciaId) : undefined;
+        if (r && !(r.mesesDesligados ?? []).includes(t.competencia)) ups<Recurrence>("recurrences", "recurrences")(alternarMes(r, t.competencia, false));
+      }
     },
-    upsertRecurrence: ups<Recurrence>("recurrences", "recurrences"),
+    upsertRecurrence(r) {
+      ups<Recurrence>("recurrences", "recurrences")({ ...r, mesesDesligados: r.mesesDesligados ?? [] });
+      get().sincronizarRecorrencias();
+    },
     deleteRecurrence: del("recurrences", "recurrences"),
+    sincronizarRecorrencias() {
+      const { competencia, recurrences, transactions } = get();
+      const hoje = currentMonthKey();
+      const faltam = lancamentosRecorrentesFaltantes(recurrences, transactions, competencia > hoje ? competencia : hoje);
+      if (!faltam.length) return;
+      get().upsertTransactions(faltam.map(({ rec: r, competencia: mk }) => novoTx({
+        entityId: r.entityId, kind: r.kind, competencia: mk, descricao: r.descricao, valor: r.valorPadrao, categoryId: r.categoryId ?? null, accountId: r.accountId ?? null,
+        vencimento: dateInMonth(mk, r.diaVencimento), recorrenciaId: r.id, moeda: r.moeda, valorBrl: r.moeda === "BRL" ? r.valorPadrao : 0,
+      })));
+    },
+    setInicioRecorrencia(recId, inicio, pagarAnteriores) {
+      const r = get().recurrences.find((x) => x.id === recId);
+      if (!r || r.inicio === inicio) return;
+      const antes = new Set(get().transactions.filter((t) => t.recorrenciaId === recId).map((t) => t.id));
+      if (inicio > r.inicio) tbl().transactions.deleteMany(get().transactions.filter((t) => t.recorrenciaId === recId && t.competencia < inicio && t.status === "pendente").map((t) => t.id));
+      if (inicio > r.inicio) set({ transactions: get().transactions.filter((t) => !(t.recorrenciaId === recId && t.competencia < inicio && t.status === "pendente")) });
+      get().upsertRecurrence(mudarInicio(r, inicio));
+      if (!pagarAnteriores) return;
+      const mesAtual = currentMonthKey();
+      const novas = get().transactions.filter((t) => t.recorrenciaId === recId && !antes.has(t.id) && t.competencia < mesAtual);
+      if (novas.length) get().upsertTransactions(novas.map((t) => ({ ...t, status: "pago" as const, pagamento: t.vencimento ?? dateInMonth(t.competencia, 1) })));
+    },
+    setRecorrenciaNoMes(recId, mk, ligada) {
+      const r = get().recurrences.find((x) => x.id === recId);
+      if (!r) return;
+      if (!ligada) get().deleteTransactions(get().transactions.filter((t) => t.recorrenciaId === recId && t.competencia === mk).map((t) => t.id));
+      get().upsertRecurrence(alternarMes(get().recurrences.find((x) => x.id === recId) ?? r, mk, ligada));
+    },
     upsertInvoice: ups<Invoice>("invoices", "invoices"),
     deleteInvoice: del("invoices", "invoices"),
     upsertClient: ups<Client>("clients", "clients"),
@@ -242,6 +292,7 @@ export const useStore = create<AppState>((set, get) => {
     async replaceDatabase(bytes) {
       await dbx().replaceWith(bytes);
       loadAll();
+      get().sincronizarRecorrencias();
     },
     resetAll() {
       const db = dbx();
